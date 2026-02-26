@@ -1,0 +1,462 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bbdsl.org/schema/0.2.json",
+  "title": "BBDSL v0.2 - Bridge Bidding Description Specification Language",
+  "description": "Schema for describing bridge bidding systems with structured semantics, context-awareness, and interoperability",
+  "type": "object",
+  "required": ["bbdsl", "system", "openings"],
+  "properties": {
+    "bbdsl": {
+      "type": "string",
+      "const": "0.2",
+      "description": "BBDSL specification version"
+    },
+    "system": { "$ref": "#/$defs/SystemMetadata" },
+    "definitions": { "$ref": "#/$defs/Definitions" },
+    "contexts": {
+      "type": "object",
+      "description": "Named context definitions (seat, vulnerability, opponent)",
+      "additionalProperties": { "$ref": "#/$defs/Context" }
+    },
+    "conventions": {
+      "type": "object",
+      "description": "Convention module library",
+      "additionalProperties": { "$ref": "#/$defs/Convention" }
+    },
+    "openings": {
+      "type": "array",
+      "description": "Opening bid definitions",
+      "items": { "$ref": "#/$defs/BidNode" }
+    },
+    "defensive": {
+      "type": "array",
+      "description": "Defensive bidding rules",
+      "items": { "$ref": "#/$defs/DefensiveEntry" }
+    },
+    "validation": { "$ref": "#/$defs/ValidationRules" },
+    "export": { "$ref": "#/$defs/ExportConfig" }
+  },
+
+  "$defs": {
+
+    "Bid": {
+      "type": "string",
+      "description": "A bid in standard notation, or a semantic bid reference",
+      "pattern": "^([1-7](C|D|H|S|NT)|Pass|X|XX|cue_bid|suit_at_cheapest_level|suit_jump|systems_on|\\$\\{.+\\})$"
+    },
+
+    "SuitSymbol": {
+      "type": "string",
+      "enum": ["C", "D", "H", "S"]
+    },
+
+    "SuitOrNT": {
+      "type": "string",
+      "enum": ["C", "D", "H", "S", "NT"]
+    },
+
+    "ForcingLevel": {
+      "type": "string",
+      "enum": ["signoff", "none", "invitational", "one_round", "game", "slam"],
+      "description": "Forcing semantics of the bid"
+    },
+
+    "Seat": {
+      "oneOf": [
+        { "type": "string", "enum": ["1st", "2nd", "3rd", "4th", "any"] },
+        { "type": "array", "items": { "type": "string", "enum": ["1st", "2nd", "3rd", "4th"] } }
+      ]
+    },
+
+    "Vulnerability": {
+      "oneOf": [
+        { "type": "string", "enum": ["none", "us", "them", "both", "any"] },
+        { "type": "array", "items": { "type": "string", "enum": ["none", "us", "them", "both"] } }
+      ]
+    },
+
+    "OpponentAction": {
+      "type": "string",
+      "enum": ["none", "pass", "bid", "double", "any"],
+      "description": "What the opponent did"
+    },
+
+    "I18nString": {
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "object",
+          "description": "Locale-keyed strings",
+          "patternProperties": {
+            "^[a-z]{2}(-[A-Z]{2})?$": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+
+    "Range": {
+      "type": "object",
+      "description": "Numeric range constraint",
+      "properties": {
+        "min": { "type": "integer" },
+        "max": { "type": "integer" },
+        "exactly": { "type": "integer" }
+      }
+    },
+
+    "SuitQualityRef": {
+      "type": "object",
+      "properties": {
+        "ref": { "type": "string", "description": "Reference to suit_qualities definition" }
+      }
+    },
+
+    "ShapeRef": {
+      "oneOf": [
+        { "type": "string", "enum": ["any"] },
+        {
+          "type": "object",
+          "properties": {
+            "ref": { "type": "string", "description": "Reference to patterns definition" },
+            "not_ref": { "type": "string" }
+          }
+        }
+      ]
+    },
+
+    "HandConstraint": {
+      "type": "object",
+      "description": "Constraints on a hand",
+      "properties": {
+        "hcp": { "$ref": "#/$defs/Range" },
+        "controls": { "$ref": "#/$defs/Range" },
+        "losing_tricks": { "$ref": "#/$defs/Range" },
+        "total_points": { "$ref": "#/$defs/Range" },
+        "shape": { "$ref": "#/$defs/ShapeRef" },
+        "clubs": { "$ref": "#/$defs/Range" },
+        "diamonds": { "$ref": "#/$defs/Range" },
+        "hearts": { "$ref": "#/$defs/Range" },
+        "spades": { "$ref": "#/$defs/Range" },
+        "bid_suit": { "$ref": "#/$defs/Range" },
+        "longest_suit": { "$ref": "#/$defs/Range" },
+        "second_suit": { "$ref": "#/$defs/Range" },
+        "four_card_major": { "type": "boolean" },
+        "support_for_unbid_suits": { "type": "boolean" },
+        "support_for_partner": { "$ref": "#/$defs/Range" },
+        "stopper_in": { "type": "string" },
+        "suit_quality": {
+          "type": "object",
+          "description": "Suit quality constraints per suit",
+          "additionalProperties": { "$ref": "#/$defs/SuitQualityRef" }
+        },
+        "conditions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/HandCondition" }
+        }
+      }
+    },
+
+    "HandCondition": {
+      "type": "object",
+      "description": "Complex hand condition (any_of, all_of, when)",
+      "properties": {
+        "any_of": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/HandConstraint" }
+        },
+        "all_of": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/HandConstraint" }
+        },
+        "when": { "type": "string", "description": "Conditional on parameter value" },
+        "description": { "$ref": "#/$defs/I18nString" }
+      }
+    },
+
+    "BidMeaning": {
+      "type": "object",
+      "properties": {
+        "description": { "$ref": "#/$defs/I18nString" },
+        "hand": { "$ref": "#/$defs/HandConstraint" },
+        "artificial": { "type": "boolean", "default": false },
+        "alertable": { "type": "boolean", "default": false },
+        "preemptive": { "type": "boolean", "default": false },
+        "forcing": { "$ref": "#/$defs/ForcingLevel" },
+        "transfer_to": { "$ref": "#/$defs/SuitSymbol" },
+        "notes": { "$ref": "#/$defs/I18nString" }
+      }
+    },
+
+    "Context": {
+      "type": "object",
+      "description": "Situational context for bidding",
+      "properties": {
+        "seat": { "$ref": "#/$defs/Seat" },
+        "vulnerability": { "$ref": "#/$defs/Vulnerability" },
+        "opponent_action": { "$ref": "#/$defs/OpponentAction" },
+        "precondition": { "type": "string" }
+      }
+    },
+
+    "ContextOverride": {
+      "type": "object",
+      "description": "Override bid meaning for specific context",
+      "required": ["context"],
+      "properties": {
+        "context": {
+          "oneOf": [
+            { "$ref": "#/$defs/Context" },
+            { "type": "object", "properties": { "ref": { "type": "string" } } }
+          ]
+        },
+        "meaning": { "$ref": "#/$defs/BidMeaning" }
+      }
+    },
+
+    "ForeachSuit": {
+      "type": "object",
+      "description": "Symmetry sugar: iterate over a suit group",
+      "required": ["variable", "over"],
+      "properties": {
+        "variable": { "type": "string", "description": "Iterator variable name" },
+        "over": {
+          "type": "string",
+          "description": "Reference to suit_groups key",
+          "enum": ["majors", "minors", "reds", "blacks", "all"]
+        },
+        "transfer_bid": { "type": "string" },
+        "target_suit": { "type": "string" }
+      }
+    },
+
+    "OpponentBranch": {
+      "type": "object",
+      "description": "Responses branched by opponent action",
+      "required": ["when_opponent"],
+      "properties": {
+        "when_opponent": { "$ref": "#/$defs/OpponentAction" },
+        "bids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/BidNode" }
+        },
+        "convention_ref": { "type": "string" }
+      }
+    },
+
+    "BidNode": {
+      "type": "object",
+      "description": "A node in the bidding tree",
+      "properties": {
+        "bid": { "type": "string" },
+        "id": { "type": "string" },
+        "by": {
+          "type": "string",
+          "enum": ["opener", "responder", "overcaller", "advancer"]
+        },
+        "ref": { "type": "string", "description": "Reference to a convention module" },
+        "foreach_suit": { "$ref": "#/$defs/ForeachSuit" },
+        "meaning": { "$ref": "#/$defs/BidMeaning" },
+        "context_overrides": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ContextOverride" }
+        },
+        "conventions_applied": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "ref": { "type": "string" },
+              "parameters": { "type": "object" }
+            }
+          }
+        },
+        "responses": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": { "$ref": "#/$defs/BidNode" }
+            },
+            {
+              "type": "array",
+              "items": { "$ref": "#/$defs/OpponentBranch" }
+            }
+          ]
+        },
+        "continuations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/BidNode" }
+        }
+      }
+    },
+
+    "Convention": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "$ref": "#/$defs/I18nString" },
+        "version": { "type": "string" },
+        "category": { "type": "string" },
+        "description": { "$ref": "#/$defs/I18nString" },
+        "parameters": {
+          "type": "object",
+          "description": "Parameterized defaults that callers can override"
+        },
+        "trigger": {
+          "type": "object",
+          "properties": {
+            "after": { "type": "array", "items": { "type": "string" } },
+            "bid": { "type": "string" }
+          }
+        },
+        "requires": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Convention IDs that must also be active"
+        },
+        "conflicts_with": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Convention IDs that are mutually exclusive"
+        },
+        "foreach_suit": { "$ref": "#/$defs/ForeachSuit" },
+        "responder_hand": { "$ref": "#/$defs/HandConstraint" },
+        "responses": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/BidNode" }
+        },
+        "bids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/BidNode" }
+        }
+      }
+    },
+
+    "DefensiveEntry": {
+      "type": "object",
+      "properties": {
+        "when_opponent_opens": { "type": "string" },
+        "actions": { "type": "object" },
+        "convention_ref": { "type": "string" }
+      }
+    },
+
+    "SystemMetadata": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "$ref": "#/$defs/I18nString" },
+        "version": { "type": "string" },
+        "authors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "contact": { "type": "string" },
+              "role": { "type": "string" }
+            }
+          }
+        },
+        "description": { "$ref": "#/$defs/I18nString" },
+        "base": { "type": ["string", "null"] },
+        "locale": { "type": "string" },
+        "license": { "type": "string" },
+        "completeness": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "enum": ["complete", "partial", "draft", "todo"]
+          }
+        }
+      }
+    },
+
+    "Definitions": {
+      "type": "object",
+      "properties": {
+        "strength_methods": { "type": "object" },
+        "patterns": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "description": { "$ref": "#/$defs/I18nString" },
+              "shapes": { "type": "array", "items": { "type": "string" } },
+              "constraints": { "type": "object" }
+            }
+          }
+        },
+        "suit_qualities": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "description": { "$ref": "#/$defs/I18nString" },
+              "top3_honors": { "$ref": "#/$defs/Range" },
+              "top5_honors": { "$ref": "#/$defs/Range" },
+              "min_length": { "type": "integer" }
+            }
+          }
+        },
+        "suit_groups": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/SuitSymbol" }
+          }
+        }
+      }
+    },
+
+    "ValidationRules": {
+      "type": "object",
+      "properties": {
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "severity"],
+            "properties": {
+              "id": { "type": "string" },
+              "description": { "$ref": "#/$defs/I18nString" },
+              "severity": { "type": "string", "enum": ["error", "warning", "info"] },
+              "scope": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "ExportConfig": {
+      "type": "object",
+      "properties": {
+        "bboalert": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "format_version": { "type": "string" },
+            "include_comments": { "type": "boolean" },
+            "seat_dependent_openings": { "type": "boolean" }
+          }
+        },
+        "bml": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "output_format": { "type": "string", "enum": ["html", "latex", "both"] },
+            "include_suit_symbols": { "type": "boolean" }
+          }
+        },
+        "convention_card": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "format": { "type": "string", "enum": ["wbf", "acbl"] }
+          }
+        }
+      }
+    }
+  }
+}

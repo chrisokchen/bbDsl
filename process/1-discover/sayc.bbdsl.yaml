@@ -1,0 +1,204 @@
+# SAYC (Standard American Yellow Card) - BBDSL 範例
+# 這是一個簡化版，展示 BBDSL 的用法
+
+bbdsl: "0.1"
+
+system:
+  name: "SAYC (Standard American Yellow Card)"
+  version: "1.0.0"
+  authors:
+    - name: "ACBL"
+  description: "美國橋牌聯盟標準制度，自然叫法"
+  locale: "zh-TW"
+
+definitions:
+  patterns:
+    balanced:
+      description: "平均牌型"
+      shapes: ["4-3-3-3", "4-4-3-2", "5-3-3-2"]
+
+conventions:
+  stayman:
+    id: "conv-stayman"
+    name: "Stayman"
+    trigger:
+      after: ["1NT"]
+      bid: "2C"
+    responses:
+      - bid: "2D"
+        meaning:
+          description: "無四張高花"
+          hand: { four_card_major: false }
+      - bid: "2H"
+        meaning:
+          description: "四張紅心"
+          hand: { hearts: { min: 4 } }
+      - bid: "2S"
+        meaning:
+          description: "四張黑桃，非四張紅心"
+          hand: { spades: { min: 4 }, hearts: { max: 3 } }
+
+  jacoby_transfer:
+    id: "conv-jacoby-transfer"
+    name: "乔乗轉換叫"
+    trigger:
+      after: ["1NT"]
+    bids:
+      - bid: "2D"
+        meaning:
+          description: "轉換至紅心"
+          transfer_to: "H"
+          hand: { hearts: { min: 5 } }
+      - bid: "2H"
+        meaning:
+          description: "轉換至黑桃"
+          transfer_to: "S"
+          hand: { spades: { min: 5 } }
+
+openings:
+
+  # === 一階花色開叫 ===
+
+  - bid: "1C"
+    id: "open-1c"
+    meaning:
+      description: "三張以上梅花，12-21 HCP"
+      hand:
+        hcp: { min: 12, max: 21 }
+        clubs: { min: 3 }
+      artificial: false
+    responses:
+      - bid: "1D"
+        meaning:
+          description: "6+ HCP，四張以上方塊"
+          hand: { hcp: { min: 6 }, diamonds: { min: 4 } }
+          forcing: one_round
+      - bid: "1H"
+        meaning:
+          description: "6+ HCP，四張以上紅心"
+          hand: { hcp: { min: 6 }, hearts: { min: 4 } }
+          forcing: one_round
+      - bid: "1S"
+        meaning:
+          description: "6+ HCP，四張以上黑桃"
+          hand: { hcp: { min: 6 }, spades: { min: 4 } }
+          forcing: one_round
+      - bid: "1NT"
+        meaning:
+          description: "6-10 HCP，無四張高花可叫"
+          hand: { hcp: { min: 6, max: 10 } }
+          forcing: none
+      - bid: "2C"
+        meaning:
+          description: "10+ HCP，五張以上梅花支持"
+          hand: { hcp: { min: 10 }, clubs: { min: 5 } }
+          forcing: one_round
+      - bid: "3C"
+        meaning:
+          description: "6-9 HCP，五張以上梅花支持（限制性加叫）"
+          hand: { hcp: { min: 6, max: 9 }, clubs: { min: 5 } }
+          forcing: none
+
+  - bid: "1D"
+    id: "open-1d"
+    meaning:
+      description: "三張以上方塊，12-21 HCP"
+      hand:
+        hcp: { min: 12, max: 21 }
+        diamonds: { min: 3 }
+
+  - bid: "1H"
+    id: "open-1h"
+    meaning:
+      description: "五張以上紅心，12-21 HCP"
+      hand:
+        hcp: { min: 12, max: 21 }
+        hearts: { min: 5 }
+
+  - bid: "1S"
+    id: "open-1s"
+    meaning:
+      description: "五張以上黑桃，12-21 HCP"
+      hand:
+        hcp: { min: 12, max: 21 }
+        spades: { min: 5 }
+
+  # === 無王開叫 ===
+
+  - bid: "1NT"
+    id: "open-1nt"
+    meaning:
+      description: "15-17 HCP，平均牌型"
+      hand:
+        hcp: { min: 15, max: 17 }
+        shape: { ref: "balanced" }
+    conventions_applied:
+      - ref: "conv-stayman"
+      - ref: "conv-jacoby-transfer"
+
+  - bid: "2NT"
+    id: "open-2nt"
+    meaning:
+      description: "20-21 HCP，平均牌型"
+      hand:
+        hcp: { min: 20, max: 21 }
+        shape: { ref: "balanced" }
+
+  # === 強開叫 ===
+
+  - bid: "2C"
+    id: "open-2c"
+    meaning:
+      description: "人工強開叫，22+ HCP 或接近成局牌力"
+      hand:
+        hcp: { min: 22 }
+      artificial: true
+      alertable: false           # SAYC 中 2C 不需 alert
+      forcing: one_round
+    responses:
+      - bid: "2D"
+        meaning:
+          description: "等待叫（消極或待定）"
+          hand: { hcp: { min: 0, max: 7 } }
+          artificial: true
+      - bid: "2H"
+        meaning:
+          description: "正面回應，5+ 紅心，8+ HCP"
+          hand: { hcp: { min: 8 }, hearts: { min: 5 } }
+      - bid: "2S"
+        meaning:
+          description: "正面回應，5+ 黑桃，8+ HCP"
+          hand: { hcp: { min: 8 }, spades: { min: 5 } }
+      - bid: "2NT"
+        meaning:
+          description: "平均牌型，8+ HCP"
+          hand: { hcp: { min: 8 }, shape: { ref: "balanced" } }
+
+  # === 弱二開叫 ===
+
+  - bid: "2D"
+    id: "open-2d"
+    meaning:
+      description: "弱二方塊"
+      hand:
+        hcp: { min: 5, max: 11 }
+        diamonds: { min: 6 }
+      preemptive: true
+
+  - bid: "2H"
+    id: "open-2h"
+    meaning:
+      description: "弱二紅心"
+      hand:
+        hcp: { min: 5, max: 11 }
+        hearts: { min: 6 }
+      preemptive: true
+
+  - bid: "2S"
+    id: "open-2s"
+    meaning:
+      description: "弱二黑桃"
+      hand:
+        hcp: { min: 5, max: 11 }
+        spades: { min: 6 }
+      preemptive: true

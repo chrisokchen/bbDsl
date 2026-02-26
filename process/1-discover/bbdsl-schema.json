@@ -1,0 +1,310 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bbdsl.org/schema/0.1.json",
+  "title": "BBDSL - Bridge Bidding Description Specification Language",
+  "description": "Schema for describing bridge bidding systems in a machine-readable format",
+  "type": "object",
+  "required": ["bbdsl", "system", "openings"],
+  "properties": {
+    "bbdsl": {
+      "type": "string",
+      "description": "BBDSL specification version",
+      "pattern": "^\\d+\\.\\d+$"
+    },
+    "system": {
+      "$ref": "#/$defs/SystemMetadata"
+    },
+    "definitions": {
+      "$ref": "#/$defs/Definitions"
+    },
+    "conventions": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Convention"
+      }
+    },
+    "openings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/BidEntry"
+      }
+    },
+    "defensive": {
+      "$ref": "#/$defs/Defensive"
+    },
+    "competitive": {
+      "$ref": "#/$defs/Competitive"
+    },
+    "validation": {
+      "$ref": "#/$defs/ValidationRules"
+    }
+  },
+
+  "$defs": {
+
+    "Bid": {
+      "type": "string",
+      "description": "A bid in standard notation",
+      "pattern": "^([1-7](C|D|H|S|NT)|Pass|X|XX)$"
+    },
+
+    "SuitSymbol": {
+      "type": "string",
+      "enum": ["C", "D", "H", "S", "NT"]
+    },
+
+    "HCPRange": {
+      "type": "object",
+      "properties": {
+        "min": { "type": "integer", "minimum": 0, "maximum": 37 },
+        "max": { "type": "integer", "minimum": 0, "maximum": 37 }
+      }
+    },
+
+    "SuitLength": {
+      "type": "object",
+      "properties": {
+        "min": { "type": "integer", "minimum": 0, "maximum": 13 },
+        "max": { "type": "integer", "minimum": 0, "maximum": 13 }
+      }
+    },
+
+    "ShapeRef": {
+      "oneOf": [
+        { "type": "string", "const": "any" },
+        {
+          "type": "object",
+          "properties": {
+            "ref": { "type": "string" },
+            "not_ref": { "type": "string" }
+          }
+        }
+      ]
+    },
+
+    "HandConstraint": {
+      "type": "object",
+      "description": "Constraints on a hand that must be satisfied",
+      "properties": {
+        "hcp": { "$ref": "#/$defs/HCPRange" },
+        "controls": { "$ref": "#/$defs/HCPRange" },
+        "losing_tricks": { "$ref": "#/$defs/HCPRange" },
+        "shape": { "$ref": "#/$defs/ShapeRef" },
+        "clubs": { "$ref": "#/$defs/SuitLength" },
+        "diamonds": { "$ref": "#/$defs/SuitLength" },
+        "hearts": { "$ref": "#/$defs/SuitLength" },
+        "spades": { "$ref": "#/$defs/SuitLength" },
+        "suit_length": { "$ref": "#/$defs/SuitLength" },
+        "four_card_major": { "type": "boolean" },
+        "support_for_partner": { "$ref": "#/$defs/SuitLength" },
+        "stopper_in": { "type": "string" },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "description": { "type": "string" },
+              "shape_constraint": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "BidMeaning": {
+      "type": "object",
+      "required": ["description"],
+      "properties": {
+        "description": { "type": "string" },
+        "hand": { "$ref": "#/$defs/HandConstraint" },
+        "artificial": { "type": "boolean", "default": false },
+        "alertable": { "type": "boolean", "default": false },
+        "preemptive": { "type": "boolean", "default": false },
+        "forcing": {
+          "type": "string",
+          "enum": ["none", "one_round", "game", "slam"],
+          "default": "none"
+        },
+        "transfer_to": { "$ref": "#/$defs/SuitSymbol" },
+        "notes": { "type": "string" }
+      }
+    },
+
+    "BidEntry": {
+      "type": "object",
+      "required": ["bid", "meaning"],
+      "properties": {
+        "bid": { "$ref": "#/$defs/Bid" },
+        "id": { "type": "string" },
+        "by": {
+          "type": "string",
+          "enum": ["opener", "responder", "overcaller", "advancer"]
+        },
+        "ref": {
+          "type": "string",
+          "description": "Reference to a convention module ID"
+        },
+        "meaning": { "$ref": "#/$defs/BidMeaning" },
+        "conventions_applied": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "ref": { "type": "string" }
+            }
+          }
+        },
+        "responses": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/BidEntry" }
+        },
+        "continuations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/BidEntry" }
+        }
+      }
+    },
+
+    "SystemMetadata": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "authors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "contact": { "type": "string" }
+            }
+          }
+        },
+        "description": { "type": "string" },
+        "base": {
+          "type": ["string", "null"],
+          "description": "Parent system to inherit from"
+        },
+        "locale": { "type": "string", "default": "en" }
+      }
+    },
+
+    "PatternDefinition": {
+      "type": "object",
+      "properties": {
+        "description": { "type": "string" },
+        "shapes": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^\\d+-\\d+-\\d+-\\d+$" }
+        },
+        "exclude_shapes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "constraints": {
+          "type": "array",
+          "items": { "type": "object" }
+        }
+      }
+    },
+
+    "Definitions": {
+      "type": "object",
+      "properties": {
+        "strength": { "type": "object" },
+        "patterns": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/PatternDefinition" }
+        },
+        "suit_rank": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "symbol": { "$ref": "#/$defs/SuitSymbol" },
+              "name": { "type": "string" },
+              "aliases": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      }
+    },
+
+    "Convention": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "version": { "type": "string" },
+        "trigger": {
+          "type": "object",
+          "properties": {
+            "after": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/Bid" }
+            },
+            "bid": { "$ref": "#/$defs/Bid" },
+            "partner_opened": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/Bid" }
+            },
+            "opponent": { "type": "string" }
+          }
+        },
+        "requires": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "responses": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/BidEntry" }
+        },
+        "bids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/BidEntry" }
+        }
+      }
+    },
+
+    "Defensive": {
+      "type": "object",
+      "properties": {
+        "overcalls": { "type": "object" },
+        "doubles": { "type": "object" },
+        "nt_overcalls": { "type": "object" }
+      }
+    },
+
+    "Competitive": {
+      "type": "object",
+      "properties": {
+        "after_opponent_overcall": { "type": "object" },
+        "after_opponent_double": { "type": "object" }
+      }
+    },
+
+    "ValidationRules": {
+      "type": "object",
+      "properties": {
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "description", "severity"],
+            "properties": {
+              "id": { "type": "string" },
+              "description": { "type": "string" },
+              "severity": {
+                "type": "string",
+                "enum": ["error", "warning", "info"]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
