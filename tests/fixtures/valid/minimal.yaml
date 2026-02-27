@@ -1,0 +1,15 @@
+bbdsl: "0.3"
+system:
+  name: { en: "Minimal Test" }
+definitions:
+  patterns:
+    balanced:
+      shapes: ["4-3-3-3", "4-4-3-2"]
+openings:
+  - bid: "1C"
+    meaning:
+      hand:
+        hcp: { min: 16 }
+      artificial: true
+      alertable: true
+      forcing: one_round

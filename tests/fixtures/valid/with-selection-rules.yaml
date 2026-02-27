@@ -1,0 +1,41 @@
+bbdsl: "0.3"
+system:
+  name: {en: "Selection Rules Test System"}
+  version: "0.1"
+
+selection_rules:
+  opening_selection:
+    rules:
+      - id: strong-club
+        condition: "hcp >= 16"
+        select: "1C"
+      - id: balanced-nt
+        condition: "hcp >= 12 && shape in balanced"
+        select: "1NT"
+      - id: catchall
+        condition: "true"
+        select: "1D"
+
+openings:
+  - bid: "1C"
+    priority: 100
+    meaning:
+      description: {en: "Strong opening"}
+      artificial: true
+      alertable: true
+      hand:
+        hcp: {min: 16}
+  - bid: "1D"
+    priority: 50
+    meaning:
+      description: {en: "Natural diamonds"}
+      hand:
+        hcp: {min: 11, max: 15}
+        diamonds: {min: 4}
+  - bid: "1NT"
+    priority: 70
+    meaning:
+      description: {en: "Balanced, 12-14 HCP"}
+      hand:
+        hcp: {min: 12, max: 14}
+        shape: {ref: balanced}

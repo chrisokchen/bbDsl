@@ -1,0 +1,16 @@
+bbdsl: "0.3"
+system:
+  name: "Forcing Violation Test"
+openings:
+  - bid: "2C"
+    meaning:
+      hand:
+        hcp: { min: 22 }
+      artificial: true
+      alertable: true
+      forcing: game
+    responses:
+      - bid: "2D"
+        meaning:
+          description: "Signoff after game forcing — violation!"
+          forcing: signoff

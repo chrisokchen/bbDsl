@@ -1,0 +1,2043 @@
+{
+  "$defs": {
+    "Author": {
+      "description": "Author metadata.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "contact": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Contact"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Role"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Author",
+      "type": "object"
+    },
+    "BidMeaning": {
+      "description": "Meaning/interpretation of a bid.",
+      "properties": {
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "hand": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HandConstraint"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "artificial": {
+          "default": false,
+          "title": "Artificial",
+          "type": "boolean"
+        },
+        "alertable": {
+          "default": false,
+          "title": "Alertable",
+          "type": "boolean"
+        },
+        "preemptive": {
+          "default": false,
+          "title": "Preemptive",
+          "type": "boolean"
+        },
+        "forcing": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ForcingLevel"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "transfer_to": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Transfer To"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        }
+      },
+      "title": "BidMeaning",
+      "type": "object"
+    },
+    "BidNode": {
+      "additionalProperties": true,
+      "description": "Node in the bidding tree (recursive).",
+      "properties": {
+        "bid": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bid"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "by": {
+          "anyOf": [
+            {
+              "enum": [
+                "opener",
+                "responder",
+                "overcaller",
+                "advancer"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "By"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ref"
+        },
+        "foreach_suit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ForeachSuit"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "meaning": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BidMeaning"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "priority": {
+          "anyOf": [
+            {
+              "maximum": 1000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Priority"
+        },
+        "context_overrides": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Context Overrides"
+        },
+        "conventions_applied": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "additionalProperties": true,
+                    "type": "object"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Conventions Applied"
+        },
+        "responses": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/BidNode"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Responses"
+        },
+        "continuations": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/BidNode"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Continuations"
+        },
+        "when": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "When"
+        }
+      },
+      "title": "BidNode",
+      "type": "object"
+    },
+    "BidType": {
+      "enum": [
+        "pass",
+        "simple_overcall",
+        "jump_overcall",
+        "preempt",
+        "cue_bid",
+        "nt_overcall",
+        "takeout_double",
+        "penalty_double",
+        "artificial",
+        "raise",
+        "new_suit",
+        "redouble"
+      ],
+      "title": "BidType",
+      "type": "string"
+    },
+    "Completeness": {
+      "additionalProperties": true,
+      "description": "Tracks which sections of a bidding system are defined.",
+      "properties": {
+        "openings": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CompletenessStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "responses_to_1c": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CompletenessStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "responses_to_1nt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CompletenessStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "defensive": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CompletenessStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "competitive": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CompletenessStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "slam_bidding": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CompletenessStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "Completeness",
+      "type": "object"
+    },
+    "CompletenessStatus": {
+      "enum": [
+        "complete",
+        "partial",
+        "draft",
+        "todo"
+      ],
+      "title": "CompletenessStatus",
+      "type": "string"
+    },
+    "Context": {
+      "description": "Bidding context specification.",
+      "properties": {
+        "seat": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Seat"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/Seat"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Seat"
+        },
+        "vulnerability": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Vulnerability"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/Vulnerability"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Vulnerability"
+        },
+        "opponent_action": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/OpponentPattern"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Opponent Action"
+        },
+        "precondition": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Precondition"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        }
+      },
+      "title": "Context",
+      "type": "object"
+    },
+    "Convention": {
+      "additionalProperties": true,
+      "description": "Convention module definition.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            }
+          ],
+          "title": "Name"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        },
+        "category": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Category"
+        },
+        "tags": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tags"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "parameters": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/ConventionParameter"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parameters"
+        },
+        "trigger": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConventionTrigger"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "requires": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Requires"
+        },
+        "conflicts_with": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Conflicts With"
+        },
+        "recommends": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Recommends"
+        },
+        "foreach_suit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ForeachSuit"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "responder_hand": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HandConstraint"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "responses": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/BidNode"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Responses"
+        },
+        "bids": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/BidNode"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bids"
+        },
+        "meaning": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BidMeaning"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "Convention",
+      "type": "object"
+    },
+    "ConventionParameter": {
+      "description": "Convention parameter definition.",
+      "properties": {
+        "type": {
+          "enum": [
+            "bid",
+            "boolean",
+            "integer",
+            "string",
+            "suit"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "default": {
+          "default": null,
+          "title": "Default"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "ConventionParameter",
+      "type": "object"
+    },
+    "ConventionTrigger": {
+      "description": "What triggers a convention.",
+      "properties": {
+        "after": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "After"
+        },
+        "bid": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bid"
+        }
+      },
+      "title": "ConventionTrigger",
+      "type": "object"
+    },
+    "DefenseToEntry": {
+      "description": "Defense against a specific opponent system.",
+      "properties": {
+        "opponent_system": {
+          "title": "Opponent System",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "when_opponent_opens": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "When Opponent Opens"
+        },
+        "actions": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/BidNode"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Actions"
+        },
+        "convention_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Convention Ref"
+        }
+      },
+      "required": [
+        "opponent_system"
+      ],
+      "title": "DefenseToEntry",
+      "type": "object"
+    },
+    "DefensiveEntry": {
+      "additionalProperties": true,
+      "description": "Defensive bidding entry.",
+      "properties": {
+        "when_opponent_opens": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/OpponentPattern"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "When Opponent Opens"
+        },
+        "actions": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/BidNode"
+              },
+              "type": "array"
+            },
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Actions"
+        },
+        "convention_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Convention Ref"
+        }
+      },
+      "title": "DefensiveEntry",
+      "type": "object"
+    },
+    "Definitions": {
+      "additionalProperties": true,
+      "description": "Global definitions block.",
+      "properties": {
+        "strength_methods": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/StrengthMethodDef"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Strength Methods"
+        },
+        "patterns": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/PatternDef"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Patterns"
+        },
+        "suit_qualities": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/SuitQualityDef"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Suit Qualities"
+        },
+        "suit_groups": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Suit Groups"
+        },
+        "dealer_functions": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dealer Functions"
+        },
+        "bid_semantics": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bid Semantics"
+        }
+      },
+      "title": "Definitions",
+      "type": "object"
+    },
+    "ExportConfig": {
+      "additionalProperties": true,
+      "description": "Export configuration.",
+      "properties": {
+        "bboalert": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bboalert"
+        },
+        "bml": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bml"
+        },
+        "convention_card": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Convention Card"
+        },
+        "pbn": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pbn"
+        },
+        "ai_knowledge_base": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ai Knowledge Base"
+        }
+      },
+      "title": "ExportConfig",
+      "type": "object"
+    },
+    "ForcingLevel": {
+      "enum": [
+        "signoff",
+        "none",
+        "invitational",
+        "one_round",
+        "game",
+        "slam"
+      ],
+      "title": "ForcingLevel",
+      "type": "string"
+    },
+    "ForeachSuit": {
+      "description": "foreach_suit expansion directive.",
+      "properties": {
+        "variable": {
+          "title": "Variable",
+          "type": "string"
+        },
+        "over": {
+          "enum": [
+            "majors",
+            "minors",
+            "reds",
+            "blacks",
+            "all"
+          ],
+          "title": "Over",
+          "type": "string"
+        }
+      },
+      "required": [
+        "variable",
+        "over"
+      ],
+      "title": "ForeachSuit",
+      "type": "object"
+    },
+    "HandConstraint": {
+      "additionalProperties": true,
+      "description": "Hand constraint — core schema, clean of import transition fields (ADR-4).",
+      "properties": {
+        "hcp": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Range"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "controls": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Range"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "losing_tricks": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Range"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "total_points": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Range"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "clubs": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Range"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "diamonds": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Range"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "hearts": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Range"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "spades": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Range"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "bid_suit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Range"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "longest_suit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Range"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "second_suit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Range"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "shape": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Shape"
+        },
+        "suit_quality": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Suit Quality"
+        },
+        "four_card_major": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Four Card Major"
+        },
+        "support_for_partner": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Range"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "stopper_in": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Stopper In"
+        },
+        "specific_cards": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Specific Cards"
+        },
+        "conditions": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Conditions"
+        }
+      },
+      "title": "HandConstraint",
+      "type": "object"
+    },
+    "ImportConfig": {
+      "additionalProperties": true,
+      "description": "Import configuration.",
+      "properties": {
+        "bml": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bml"
+        },
+        "bboalert": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bboalert"
+        }
+      },
+      "title": "ImportConfig",
+      "type": "object"
+    },
+    "OpponentPattern": {
+      "description": "Opponent action pattern — pure data, matching logic in core/opponent_matcher.py (ADR-5).",
+      "properties": {
+        "simple": {
+          "anyOf": [
+            {
+              "enum": [
+                "pass",
+                "double",
+                "any_action",
+                "any_bid"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Simple"
+        },
+        "bid": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bid"
+        },
+        "bid_range": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bid Range"
+        },
+        "level": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "$ref": "#/$defs/Range"
+            },
+            {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Level"
+        },
+        "suit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Suit"
+        },
+        "bid_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BidType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "any_of": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/OpponentPattern"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Any Of"
+        },
+        "all_of": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/OpponentPattern"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "All Of"
+        },
+        "not": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OpponentPattern"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "OpponentPattern",
+      "type": "object"
+    },
+    "PatternDef": {
+      "description": "Shape pattern definition.",
+      "properties": {
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "shapes": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Shapes"
+        },
+        "shapes_exact": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Shapes Exact"
+        },
+        "constraints": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Constraints"
+        }
+      },
+      "title": "PatternDef",
+      "type": "object"
+    },
+    "Range": {
+      "description": "Numeric range constraint.",
+      "properties": {
+        "min": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min"
+        },
+        "max": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max"
+        },
+        "exactly": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exactly"
+        }
+      },
+      "title": "Range",
+      "type": "object"
+    },
+    "Seat": {
+      "enum": [
+        "1st",
+        "2nd",
+        "3rd",
+        "4th",
+        "any"
+      ],
+      "title": "Seat",
+      "type": "string"
+    },
+    "StrengthMethodDef": {
+      "description": "Strength evaluation method definition.",
+      "properties": {
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "range": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Range"
+        }
+      },
+      "title": "StrengthMethodDef",
+      "type": "object"
+    },
+    "SuitQualityDef": {
+      "description": "Suit quality definition.",
+      "properties": {
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "top3_honors": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Range"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "top5_honors": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Range"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "min_length": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Length"
+        }
+      },
+      "title": "SuitQualityDef",
+      "type": "object"
+    },
+    "SystemMetadata": {
+      "description": "System metadata.",
+      "properties": {
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            }
+          ],
+          "title": "Name"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        },
+        "authors": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/Author"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Authors"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "base": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Base"
+        },
+        "locale": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Locale"
+        },
+        "license": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "License"
+        },
+        "completeness": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Completeness"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "SystemMetadata",
+      "type": "object"
+    },
+    "ValidationConfig": {
+      "additionalProperties": true,
+      "description": "Validation configuration.",
+      "properties": {
+        "rules": {
+          "anyOf": [
+            {
+              "items": {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rules"
+        }
+      },
+      "title": "ValidationConfig",
+      "type": "object"
+    },
+    "Vulnerability": {
+      "enum": [
+        "none",
+        "us",
+        "them",
+        "both",
+        "any"
+      ],
+      "title": "Vulnerability",
+      "type": "string"
+    }
+  },
+  "description": "Top-level BBDSL document.",
+  "properties": {
+    "bbdsl": {
+      "default": "0.3",
+      "title": "Bbdsl",
+      "type": "string"
+    },
+    "system": {
+      "$ref": "#/$defs/SystemMetadata"
+    },
+    "definitions": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Definitions"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "contexts": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/Context"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Contexts"
+    },
+    "conventions": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/Convention"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Conventions"
+    },
+    "openings": {
+      "items": {
+        "$ref": "#/$defs/BidNode"
+      },
+      "title": "Openings",
+      "type": "array"
+    },
+    "defensive": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/DefensiveEntry"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Defensive"
+    },
+    "defense_to": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/DefenseToEntry"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Defense To"
+    },
+    "selection_rules": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Selection Rules"
+    },
+    "validation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ValidationConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "export": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ExportConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "import": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ImportConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "system",
+    "openings"
+  ],
+  "title": "BBDSLDocument",
+  "type": "object"
+}

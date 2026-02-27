@@ -1,0 +1,22 @@
+bbdsl: "0.3"
+system:
+  name: {en: "Seat Vul Conflict Test"}
+  version: "0.1"
+
+openings:
+  - bid: "1NT"
+    meaning:
+      description: {en: "Balanced opening"}
+      hand:
+        hcp: {min: 15, max: 17}
+    context_overrides:
+      - context:
+          seat: first
+          vulnerability: none
+        meaning:
+          description: {en: "15-17 HCP, favorable"}
+      - context:
+          seat: first
+          vulnerability: none
+        meaning:
+          description: {en: "15-17 HCP, favorable - duplicate!"}

@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(uv sync:*)",
+      "Bash(uv run:*)",
+      "Bash(do echo:*)"
     ]
   }
 }

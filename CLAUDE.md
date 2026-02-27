@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **BBDSL** (Bridge Bidding Description Specification Language) is a domain-specific language for describing bridge bidding systems in structured, machine-readable YAML. It bridges the semantic gap between existing formats (BML, BBOalert, Dealer, PBN) by providing verifiable logic, AI-readable semantics, and ecosystem interoperability.
 
-**Current status**: Pre-implementation — v0.3 specification is complete, no Python code yet. Ready for Phase 1 kickoff.
+**Current status**: Phase 1 complete (Sprint 1.1 + 1.2 + 1.3). Python package with CLI, models, loader, expander, validator, and BML importer are all implemented and tested (141 tests, 82% coverage).
 
 ## Canonical References
 
@@ -19,24 +19,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Python 3.11+, Pydantic v2 (strict mode), ruamel.yaml, jsonschema, Click (CLI), Jinja2 (templates), pytest + hypothesis (testing), mkdocs-material (docs). Package management via **uv** (`pyproject.toml` + `uv.lock`).
 
-### Expected Commands (once implementation begins)
+### Commands
 
 ```bash
-pytest tests/                              # All tests
-pytest tests/test_core/test_validator.py   # Single test file
-ruff check bbdsl/ tests/                   # Lint
-ruff format bbdsl/ tests/                  # Format
+uv run pytest tests/                             # All tests
+uv run pytest tests/test_core/test_validator.py  # Single test file
+uv run ruff check bbdsl/ tests/                  # Lint
+uv run ruff format bbdsl/ tests/                 # Format
 ```
 
-### Expected CLI
+### CLI (all implemented)
 
 ```bash
-bbdsl load <file>.bbdsl.yaml       # Load and validate
-bbdsl expand <file>.bbdsl.yaml     # Expand foreach_suit
-bbdsl validate <file>.bbdsl.yaml   # Run 14 validation rules
-bbdsl import bml <file>.bml        # Import from BML
-bbdsl export bboalert <file>.yaml  # Export to BBOalert (Phase 2+)
+uv run bbdsl load <file>.bbdsl.yaml              # Load and print summary
+uv run bbdsl expand <file>.bbdsl.yaml            # Expand foreach_suit
+uv run bbdsl validate <file>.bbdsl.yaml          # Run 10 validation rules
+uv run bbdsl validate <file>.yaml --rules val-002,val-008  # Specific rules
+uv run bbdsl import bml <file>.bml               # Import BML → BBDSL YAML
+uv run bbdsl import bml <file>.bml -n "Name" -o out.yaml  # With options
+uv run bbdsl schema                              # Generate JSON Schema
 ```
+
+Exit codes: `validate` and `import bml` return 0=pass, 1=warnings, 2=errors.
 
 ## Architecture
 
@@ -56,18 +60,23 @@ Key architectural patterns:
 
 5. **14 Validation Rules**: From HCP coverage gaps (val-001) through convention ID format (val-011) to selection rule exhaustiveness (val-014). Each rule has type (error/warning) and scope.
 
-### Planned Package Structure
+### Package Structure (Phase 1 implemented)
 
 ```
 bbdsl/
-├── models/       # Pydantic v2 models (CallNode, UnresolvedNode as Union type)
-├── core/         # Loader, validator, foreach_suit expander, opponent_matcher
-├── importers/    # BML, BBOalert importers (failed parse → UnresolvedNode)
-├── exporters/    # BBOalert, BML, PBN, Convention Card, AI KB exporters
-├── viewer/       # HTML interactive viewer (Phase 3)
-├── ai/           # AI KB export, simulation (Phase 4)
-└── cli/          # Click-based CLI
+├── models/       # Pydantic v2 models: common, bid, convention, context, system
+├── core/         # loader.py, expander.py, validator.py
+├── importers/    # bml_importer.py (BML → BBDSL, with UnresolvedNode for failures)
+├── exporters/    # (Phase 2+)
+├── viewer/       # (Phase 3+)
+├── ai/           # (Phase 4+)
+└── cli/main.py   # Click CLI: load, expand, validate, import bml, schema
 ```
+
+Key modules:
+- `bbdsl/core/expander.py` — SUIT_META + foreach_suit recursive expansion
+- `bbdsl/core/validator.py` — 10 rules (8 real + 2 stubs); ValidationResult/Report
+- `bbdsl/importers/bml_importer.py` — parse_bml_text, extract_semantics, import_bml
 
 ## Coding Conventions
 

@@ -1,0 +1,14 @@
+bbdsl: "0.3"
+system:
+  name: "Overlap Test"
+openings:
+  - bid: "1H"
+    meaning:
+      hand:
+        hcp: { min: 11, max: 15 }
+        hearts: { min: 5 }
+  - bid: "1S"
+    meaning:
+      hand:
+        hcp: { min: 14, max: 18 }
+        hearts: { min: 5 }

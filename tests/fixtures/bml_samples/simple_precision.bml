@@ -1,0 +1,26 @@
+# Simple Precision Club — BML format test fixture
+# 2 spaces per indent level
+
+1C  16+ HCP, art, alert
+  1D  0-7 HCP, art, alert
+  1H  8+ HCP, 5+ hearts, GF
+  1S  8+ HCP, 5+ spades, GF
+  1NT 8-13 HCP, bal
+  2NT 14+ HCP, bal, GF
+1D  11-15 HCP
+  1H  4+ hearts, 8+ HCP, forcing
+  1S  4+ spades, 8+ HCP, forcing
+  1NT 8-11 HCP
+1H  11-15 HCP, 5+ hearts
+  1S  4+ spades, 8+ HCP, forcing
+  1NT 8-11 HCP, forcing
+  2H  6-9 HCP, 3+ hearts
+1S  11-15 HCP, 5+ spades
+  1NT 8-11 HCP, forcing
+  2S  6-9 HCP, 3+ spades
+1NT 15-17 HCP, bal
+2C  22+ HCP, art, alert, GF
+  2D  0-7 HCP, art, alert
+  2NT 8+ HCP, bal, GF
+2H  5-10 HCP, 6+ hearts, preemptive
+2S  5-10 HCP, 6+ spades, preemptive

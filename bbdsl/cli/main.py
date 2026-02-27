@@ -1,0 +1,524 @@
+"""CLI entry point for BBDSL."""
+
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+import click
+
+
+@click.group()
+@click.version_option(package_name="bbdsl")
+def cli() -> None:
+    """BBDSL — Bridge Bidding Description Specification Language."""
+
+
+@cli.command()
+@click.argument("path", type=click.Path(exists=True, path_type=Path))
+def load(path: Path) -> None:
+    """Load and validate a BBDSL YAML file."""
+    from bbdsl.core.loader import load_document, print_summary
+
+    try:
+        doc = load_document(path)
+        print_summary(doc)
+    except Exception as e:
+        raise click.ClickException(str(e)) from e
+
+
+@cli.command()
+@click.option(
+    "--output", "-o",
+    type=click.Path(path_type=Path),
+    default="schema/bbdsl-v0.3-generated.json",
+    help="Output path for the generated JSON Schema.",
+)
+def schema(output: Path) -> None:
+    """Generate JSON Schema from Pydantic models."""
+    from bbdsl.core.loader import generate_json_schema
+
+    generate_json_schema(output)
+    click.echo(f"JSON Schema written to {output}")
+
+
+@cli.command()
+@click.argument("path", type=click.Path(exists=True, path_type=Path))
+@click.option("--output", "-o", type=click.Path(path_type=Path), help="Output expanded JSON.")
+def expand(path: Path, output: Path | None) -> None:
+    """Expand foreach_suit directives in a BBDSL YAML file."""
+    from bbdsl.core.expander import count_expanded, expand_document
+    from bbdsl.core.loader import load_document
+
+    try:
+        doc = load_document(path)
+        expanded = expand_document(doc)
+        n = count_expanded(expanded)
+        if output:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            with open(output, "w", encoding="utf-8") as f:
+                json.dump(expanded, f, indent=2, ensure_ascii=False)
+            click.echo(f"Expanded {n} node(s) → {output}")
+        else:
+            click.echo(f"Expanded {n} node(s) from foreach_suit.")
+    except Exception as e:
+        raise click.ClickException(str(e)) from e
+
+
+@cli.command()
+@click.argument("path", type=click.Path(exists=True, path_type=Path))
+@click.option("--rules", "-r", default=None, help="Comma-separated rule IDs to run.")
+@click.option("--output", "-o", type=click.Path(path_type=Path), help="Output JSON report.")
+def validate(path: Path, rules: str | None, output: Path | None) -> None:
+    """Validate a BBDSL document against semantic rules."""
+    from bbdsl.core.loader import load_document
+    from bbdsl.core.validator import Validator
+
+    try:
+        doc = load_document(path)
+    except Exception as e:
+        raise click.ClickException(str(e)) from e
+
+    rule_ids = [r.strip() for r in rules.split(",")] if rules else None
+    validator = Validator(doc)
+    report = validator.validate_all(rule_ids)
+
+    for result in report.results:
+        if not result.passed and result.severity == "error":
+            click.secho(f"  {result.rule_id} {result.rule_name}: {result.message}", fg="red")
+            for d in result.details:
+                click.secho(f"    {d}", fg="red")
+        elif not result.passed and result.severity == "warning":
+            click.secho(f"  {result.rule_id} {result.rule_name}: {result.message}", fg="yellow")
+            for d in result.details:
+                click.secho(f"    {d}", fg="yellow")
+        else:
+            click.secho(f"  {result.rule_id} {result.rule_name}: PASSED", fg="green")
+
+    passed = sum(1 for r in report.results if r.passed)
+    total = len(report.results)
+    click.echo(f"\nSummary: {passed}/{total} passed, "
+               f"{report.warning_count} warning(s), {report.error_count} error(s)")
+
+    if output:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        with open(output, "w", encoding="utf-8") as f:
+            json.dump(report.model_dump(), f, indent=2, ensure_ascii=False)
+
+    if report.has_errors():
+        sys.exit(2)
+    elif report.warning_count > 0:
+        sys.exit(1)
+
+
+@cli.group("export")
+def export_group() -> None:
+    """Export a BBDSL document to another format."""
+
+
+@export_group.command("bboalert")
+@click.argument("path", type=click.Path(exists=True, path_type=Path))
+@click.option("--output", "-o", type=click.Path(path_type=Path), help="Output .bboalert file.")
+@click.option("--locale", "-l", default="en", show_default=True,
+              help="Language for descriptions (en or zh-TW).")
+@click.option("--no-comments", is_flag=True, default=False,
+              help="Omit header comments from output.")
+def export_bboalert(path: Path, output: Path | None, locale: str, no_comments: bool) -> None:
+    """Export a BBDSL YAML file to BBOalert CSV format."""
+    from bbdsl.core.loader import load_document
+    from bbdsl.exporters.bboalert_exporter import export_bboalert as _export
+
+    try:
+        doc = load_document(path)
+        rows = _export(doc, output_path=output, locale=locale,
+                       include_comments=not no_comments)
+    except Exception as e:
+        raise click.ClickException(str(e)) from e
+
+    if output:
+        click.secho(f"Exported {len(rows)} row(s) → {output}", fg="green")
+    else:
+        # Print to stdout
+        import csv
+        import io
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        for row in rows:
+            writer.writerow(list(row))
+        click.echo(buf.getvalue(), nl=False)
+
+
+@export_group.command("bml")
+@click.argument("path", type=click.Path(exists=True, path_type=Path))
+@click.option("--output", "-o", type=click.Path(path_type=Path), help="Output .bml file.")
+@click.option("--locale", "-l", default="en", show_default=True,
+              help="Language for descriptions (en or zh-TW).")
+@click.option("--suit-symbols", is_flag=True, default=False,
+              help="Use ♠♥♦♣ symbols instead of suit names.")
+@click.option("--no-comments", is_flag=True, default=False,
+              help="Omit header comments from output.")
+def export_bml_cmd(
+    path: Path, output: Path | None, locale: str,
+    suit_symbols: bool, no_comments: bool,
+) -> None:
+    """Export a BBDSL YAML file to BML (Bridge Markup Language) format."""
+    from bbdsl.core.loader import load_document
+    from bbdsl.exporters.bml_exporter import export_bml as _export
+
+    try:
+        doc = load_document(path)
+        text = _export(
+            doc,
+            output_path=output,
+            locale=locale,
+            suit_symbols=suit_symbols,
+            include_comments=not no_comments,
+        )
+    except Exception as e:
+        raise click.ClickException(str(e)) from e
+
+    if output:
+        click.secho(f"Exported BML → {output}", fg="green")
+    else:
+        click.echo(text, nl=False)
+
+
+@export_group.command("html")
+@click.argument("path", type=click.Path(exists=True, path_type=Path))
+@click.option("--output", "-o", type=click.Path(path_type=Path), help="Output .html file.")
+@click.option("--locale", "-l", default="en", show_default=True,
+              help="Language for descriptions (en or zh-TW).")
+@click.option("--suit-symbols", is_flag=True, default=False,
+              help="Use ♠♥♦♣ symbols instead of suit names.")
+@click.option("--title", default=None, help="Override page title.")
+def export_html_cmd(
+    path: Path, output: Path | None, locale: str,
+    suit_symbols: bool, title: str | None,
+) -> None:
+    """Export a BBDSL YAML file to interactive HTML viewer."""
+    from bbdsl.core.loader import load_document
+    from bbdsl.exporters.html_exporter import export_html as _export
+
+    try:
+        doc = load_document(path)
+        html = _export(
+            doc,
+            output_path=output,
+            locale=locale,
+            suit_symbols=suit_symbols,
+            title=title,
+        )
+    except Exception as e:
+        raise click.ClickException(str(e)) from e
+
+    if output:
+        click.secho(f"Exported HTML viewer → {output}", fg="green")
+    else:
+        click.echo(html, nl=False)
+
+
+@export_group.command("convcard")
+@click.argument("path", type=click.Path(exists=True, path_type=Path))
+@click.option("--output", "-o", type=click.Path(path_type=Path), help="Output .html file.")
+@click.option("--locale", "-l", default="en", show_default=True,
+              help="Language for descriptions (en or zh-TW).")
+@click.option("--style", default="wbf", show_default=True,
+              type=click.Choice(["wbf", "acbl"]),
+              help="Convention card style (wbf or acbl).")
+@click.option("--title", default=None, help="Override page title.")
+def export_convcard_cmd(
+    path: Path, output: Path | None, locale: str,
+    style: str, title: str | None,
+) -> None:
+    """Export a BBDSL YAML file to printable Convention Card HTML."""
+    from bbdsl.core.loader import load_document
+    from bbdsl.exporters.convcard_exporter import export_convcard as _export
+
+    try:
+        doc = load_document(path)
+        html = _export(
+            doc,
+            output_path=output,
+            locale=locale,
+            style=style,
+            title=title,
+        )
+    except Exception as e:
+        raise click.ClickException(str(e)) from e
+
+    if output:
+        click.secho(f"Exported Convention Card → {output}", fg="green")
+    else:
+        click.echo(html, nl=False)
+
+
+@export_group.command("svg")
+@click.argument("path", type=click.Path(exists=True, path_type=Path))
+@click.option("--output", "-o", type=click.Path(path_type=Path), help="Output .svg file.")
+@click.option("--locale", "-l", default="en", show_default=True,
+              help="Language for descriptions (en or zh-TW).")
+@click.option("--suit-symbols", is_flag=True, default=False,
+              help="Use ♠♥♦♣ symbols in node descriptions.")
+@click.option("--max-depth", default=2, show_default=True, type=int,
+              help="Maximum tree depth (0=openings only, 1=+responses).")
+def export_svg_cmd(
+    path: Path, output: Path | None, locale: str,
+    suit_symbols: bool, max_depth: int,
+) -> None:
+    """Export a BBDSL YAML file to SVG bidding tree diagram."""
+    from bbdsl.core.loader import load_document
+    from bbdsl.exporters.svg_tree import export_svg as _export
+
+    try:
+        doc = load_document(path)
+        svg = _export(
+            doc,
+            output_path=output,
+            locale=locale,
+            suit_symbols=suit_symbols,
+            max_depth=max_depth,
+        )
+    except Exception as e:
+        raise click.ClickException(str(e)) from e
+
+    if output:
+        click.secho(f"Exported SVG tree → {output}", fg="green")
+    else:
+        click.echo(svg, nl=False)
+
+
+@export_group.command("ai-kb")
+@click.argument("path", type=click.Path(exists=True, path_type=Path))
+@click.option("--output", "-o", type=click.Path(path_type=Path), help="Output .json or .jsonl file.")
+@click.option("--format", "-f", "fmt", default="jsonl", show_default=True,
+              type=click.Choice(["json", "jsonl"]),
+              help="Output format: jsonl (one record per line) or json (array).")
+@click.option("--locale", "-l", default="en", show_default=True,
+              help="Language for descriptions (en or zh-TW).")
+@click.option("--suit-symbols", is_flag=True, default=False,
+              help="Use ♠♥♦♣ symbols in descriptions.")
+@click.option("--no-conventions", is_flag=True, default=False,
+              help="Exclude convention rules from output.")
+def export_ai_kb_cmd(
+    path: Path, output: Path | None, fmt: str, locale: str,
+    suit_symbols: bool, no_conventions: bool,
+) -> None:
+    """Export a BBDSL YAML file to AI knowledge base (JSON/JSONL for RAG)."""
+    from bbdsl.core.loader import load_document
+    from bbdsl.exporters.ai_kb_exporter import export_ai_kb as _export, _to_json, _to_jsonl, _system_name
+
+    try:
+        doc = load_document(path)
+        rules = _export(
+            doc,
+            output_path=output,
+            fmt=fmt,
+            locale=locale,
+            suit_symbols=suit_symbols,
+            include_conventions=not no_conventions,
+        )
+    except Exception as e:
+        raise click.ClickException(str(e)) from e
+
+    if output:
+        click.secho(f"Exported {len(rules)} rule(s) → {output}", fg="green")
+    else:
+        sname = _system_name(doc, locale)
+        if fmt == "jsonl":
+            click.echo(_to_jsonl(rules), nl=False)
+        else:
+            click.echo(_to_json(rules, sname, locale), nl=False)
+
+
+@export_group.command("dealer")
+@click.argument("path", type=click.Path(exists=True, path_type=Path))
+@click.option("--output", "-o", type=click.Path(path_type=Path), help="Output .dds Dealer script file.")
+@click.option("--seat", default="south", show_default=True,
+              help="Dealer seat name for conditions.")
+@click.option("--locale", "-l", default="en", show_default=True,
+              help="Language for comments (en or zh-TW).")
+def export_dealer_cmd(
+    path: Path, output: Path | None, seat: str, locale: str,
+) -> None:
+    """Export opening constraints as a Dealer script (.dds)."""
+    from bbdsl.core.loader import load_document
+    from bbdsl.core.dealer_bridge import openings_to_dealer_script
+
+    try:
+        doc = load_document(path)
+        script = openings_to_dealer_script(doc, seat=seat, locale=locale)
+    except Exception as e:
+        raise click.ClickException(str(e)) from e
+
+    if output:
+        output = Path(output)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(script, encoding="utf-8")
+        openings_count = len(doc.openings or [])
+        click.secho(f"Exported {openings_count} opening(s) as Dealer script → {output}", fg="green")
+    else:
+        click.echo(script, nl=False)
+
+
+@cli.command("quiz")
+@click.argument("path", type=click.Path(exists=True, path_type=Path))
+@click.option("--output", "-o", type=click.Path(path_type=Path), help="Output .html file.")
+@click.option("--locale", "-l", default="en", show_default=True,
+              help="Language (en or zh-TW).")
+@click.option("--n", "-n", "n_questions", default=20, show_default=True, type=int,
+              help="Number of quiz questions.")
+@click.option("--types", default="opening,response", show_default=True,
+              help="Question types: comma-separated 'opening' and/or 'response'.")
+@click.option("--seed", default=None, type=int, help="Random seed for reproducibility.")
+@click.option("--title", default=None, help="Override page title.")
+def quiz_cmd(
+    path: Path,
+    output: Path | None,
+    locale: str,
+    n_questions: int,
+    types: str,
+    seed: int | None,
+    title: str | None,
+) -> None:
+    """Generate an interactive HTML bidding quiz from a BBDSL YAML file."""
+    from bbdsl.core.loader import load_document
+    from bbdsl.exporters.quiz_exporter import export_quiz as _export
+
+    try:
+        doc = load_document(path)
+        question_types = [t.strip() for t in types.split(",")]
+        html = _export(
+            doc,
+            output_path=output,
+            n=n_questions,
+            question_types=question_types,
+            locale=locale,
+            title=title,
+            seed=seed,
+        )
+    except Exception as e:
+        raise click.ClickException(str(e)) from e
+
+    if output:
+        click.secho(f"Quiz ({n_questions} questions) → {output}", fg="green")
+    else:
+        click.echo(html, nl=False)
+
+
+@cli.command("select")
+@click.argument("path", type=click.Path(exists=True, path_type=Path))
+@click.option("--hcp", type=int, default=None, help="Hand HCP.")
+@click.option("--hearts", type=int, default=0, help="Heart suit length.")
+@click.option("--spades", type=int, default=0, help="Spade suit length.")
+@click.option("--diamonds", type=int, default=0, help="Diamond suit length.")
+@click.option("--clubs", type=int, default=0, help="Club suit length.")
+@click.option("--controls", type=int, default=0, help="Control count.")
+@click.option("--shape", default=None, help="Shape category (balanced/semi_balanced).")
+def select_cmd(
+    path: Path,
+    hcp: int | None,
+    hearts: int,
+    spades: int,
+    diamonds: int,
+    clubs: int,
+    controls: int,
+    shape: str | None,
+) -> None:
+    """Select an opening bid using selection_rules for a given hand description."""
+    from bbdsl.core.loader import load_document
+    from bbdsl.core.selector import select_opening
+
+    try:
+        doc = load_document(path)
+    except Exception as e:
+        raise click.ClickException(str(e)) from e
+
+    if not doc.selection_rules:
+        raise click.ClickException("Document has no selection_rules defined.")
+
+    hand = {
+        "hcp": hcp or 0,
+        "hearts": hearts,
+        "spades": spades,
+        "diamonds": diamonds,
+        "clubs": clubs,
+        "controls": controls,
+    }
+    if shape:
+        hand["shape"] = shape
+
+    result = select_opening(hand, doc.selection_rules)
+    if result:
+        click.secho(f"Selected opening: {result}", fg="green")
+    else:
+        click.secho("No opening selected (no matching rule).", fg="yellow")
+        sys.exit(1)
+
+
+@cli.group("import")
+def import_group() -> None:
+    """Import a bidding system from another format."""
+
+
+@import_group.command("bml")
+@click.argument("path", type=click.Path(exists=True, path_type=Path))
+@click.option("--name", "-n", default=None, help="System name (default: derived from filename).")
+@click.option("--output", "-o", type=click.Path(path_type=Path), help="Output BBDSL YAML path.")
+def import_bml(path: Path, name: str | None, output: Path | None) -> None:
+    """Import a BML (Bridge Markup Language) file to BBDSL YAML."""
+    from bbdsl.importers.bml_importer import import_bml as _import_bml
+
+    try:
+        doc, n_unresolved = _import_bml(path, system_name=name, output_path=output)
+    except Exception as e:
+        raise click.ClickException(str(e)) from e
+
+    n_openings = len(doc.get("openings", []))
+    if output:
+        click.secho(f"Imported {n_openings} opening(s) → {output}", fg="green")
+    else:
+        click.echo(f"Imported {n_openings} opening(s) from {path.name}")
+
+    if n_unresolved:
+        click.secho(
+            f"  {n_unresolved} UnresolvedNode(s) need manual fixing "
+            f"(search for 'is_unresolved: true' in output).",
+            fg="yellow",
+        )
+    else:
+        click.secho("  All nodes resolved successfully.", fg="green")
+
+    if n_unresolved:
+        sys.exit(1)  # Unresolved nodes → warning exit
+
+
+@import_group.command("bboalert")
+@click.argument("path", type=click.Path(exists=True, path_type=Path))
+@click.option("--name", "-n", default=None, help="System name.")
+@click.option("--output", "-o", type=click.Path(path_type=Path), help="Output BBDSL YAML path.")
+def import_bboalert_cmd(path: Path, name: str | None, output: Path | None) -> None:
+    """Import a BBOalert CSV file to BBDSL YAML."""
+    from bbdsl.importers.bboalert_importer import import_bboalert as _import
+
+    try:
+        doc, n_unresolved = _import(path, system_name=name, output_path=output)
+    except Exception as e:
+        raise click.ClickException(str(e)) from e
+
+    n_openings = len(doc.get("openings", []))
+    if output:
+        click.secho(f"Imported {n_openings} opening(s) → {output}", fg="green")
+    else:
+        click.echo(f"Imported {n_openings} opening(s) from {path.name}")
+
+    if n_unresolved:
+        click.secho(
+            f"  {n_unresolved} UnresolvedNode(s) need manual fixing.",
+            fg="yellow",
+        )
+    else:
+        click.secho("  All nodes resolved successfully.", fg="green")
+
+    if n_unresolved:
+        sys.exit(1)

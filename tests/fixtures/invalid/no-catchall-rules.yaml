@@ -1,0 +1,29 @@
+bbdsl: "0.3"
+system:
+  name: {en: "No Catchall System"}
+  version: "0.1"
+
+selection_rules:
+  opening_selection:
+    rules:
+      - id: strong-club
+        condition: "hcp >= 16"
+        select: "1C"
+      - id: balanced-nt
+        condition: "hcp >= 12 && shape in balanced"
+        select: "1NT"
+
+openings:
+  - bid: "1C"
+    meaning:
+      description: {en: "Strong opening"}
+      artificial: true
+      alertable: true
+      hand:
+        hcp: {min: 16}
+  - bid: "1NT"
+    meaning:
+      description: {en: "Balanced"}
+      hand:
+        hcp: {min: 12, max: 14}
+        shape: {ref: balanced}

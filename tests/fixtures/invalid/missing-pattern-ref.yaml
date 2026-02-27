@@ -1,0 +1,14 @@
+bbdsl: "0.3"
+system:
+  name: "Missing Pattern Ref Test"
+definitions:
+  patterns:
+    balanced:
+      shapes: ["4-3-3-3"]
+openings:
+  - bid: "1NT"
+    meaning:
+      hand:
+        hcp: { min: 15, max: 17 }
+        shape:
+          ref: "nonexistent_pattern"

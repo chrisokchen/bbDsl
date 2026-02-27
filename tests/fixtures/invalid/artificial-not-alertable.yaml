@@ -1,0 +1,10 @@
+bbdsl: "0.3"
+system:
+  name: "Alertable Check Test"
+openings:
+  - bid: "1C"
+    meaning:
+      hand:
+        hcp: { min: 16 }
+      artificial: true
+      alertable: false

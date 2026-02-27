@@ -1,0 +1,20 @@
+bbdsl: "0.3"
+system:
+  name: {en: "Foreach Conflict Test"}
+  version: "0.1"
+
+openings:
+  - bid: "1H"
+    meaning:
+      description: {en: "Pre-existing hearts opening"}
+      hand:
+        hcp: {min: 12}
+        hearts: {min: 5}
+  - foreach_suit:
+      variable: M
+      over: majors
+    bid: "1${M}"
+    meaning:
+      description: {en: "Major opening - will conflict with 1H"}
+      hand:
+        hcp: {min: 12}

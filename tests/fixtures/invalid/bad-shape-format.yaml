@@ -1,0 +1,14 @@
+bbdsl: "0.3"
+system:
+  name: "Bad Shape Format Test"
+definitions:
+  patterns:
+    wrong_generic:
+      shapes: ["4=3=3=3"]
+    wrong_exact:
+      shapes_exact: ["4-4-1-4"]
+openings:
+  - bid: "1C"
+    meaning:
+      hand:
+        hcp: { min: 12 }

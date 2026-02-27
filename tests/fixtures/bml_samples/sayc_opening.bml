@@ -1,0 +1,28 @@
+# SAYC opening bids — BML test fixture (simplified)
+# Standard American Yellow Card
+1C  12-21 HCP, 3+ clubs
+  1D  6+ HCP, 4+ diamonds
+  1H  6+ HCP, 4+ hearts
+  1S  6+ HCP, 4+ spades
+  1NT 6-10 HCP, bal
+  2NT 11-12 HCP, bal, inv
+1D  12-21 HCP, 3+ diamonds
+  1H  6+ HCP, 4+ hearts
+  1S  6+ HCP, 4+ spades
+  1NT 6-10 HCP
+1H  12-21 HCP, 5+ hearts
+  1S  6+ HCP, 4+ spades, forcing
+  1NT 6-12 HCP, semi-forcing
+  2H  6-10 HCP, 3+ hearts
+  3H  10-12 HCP, 4+ hearts, preemptive
+1S  12-21 HCP, 5+ spades
+  1NT 6-12 HCP, semi-forcing
+  2S  6-10 HCP, 3+ spades
+1NT 15-17 HCP, bal
+  2C  Stayman, art, alert
+  2D  Transfer to hearts, art, alert
+  2H  Transfer to spades, art, alert
+2C  22+ HCP, art, alert, GF
+2D  6-10 HCP, 6+ diamonds, preemptive
+2H  6-10 HCP, 6+ hearts, preemptive
+2S  6-10 HCP, 6+ spades, preemptive

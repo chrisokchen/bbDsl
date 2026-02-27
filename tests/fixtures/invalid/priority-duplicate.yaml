@@ -1,0 +1,26 @@
+bbdsl: "0.3"
+system:
+  name: {en: "Priority Duplicate Test System"}
+  version: "0.1"
+
+openings:
+  - bid: "1C"
+    priority: 10
+    meaning:
+      description: {en: "Clubs opening"}
+      hand:
+        hcp: {min: 11}
+        clubs: {min: 4}
+  - bid: "1D"
+    priority: 10
+    meaning:
+      description: {en: "Diamonds opening - duplicate priority!"}
+      hand:
+        hcp: {min: 11}
+        diamonds: {min: 4}
+  - bid: "1NT"
+    priority: 50
+    meaning:
+      description: {en: "Balanced"}
+      hand:
+        hcp: {min: 15, max: 17}

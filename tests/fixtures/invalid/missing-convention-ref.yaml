@@ -1,0 +1,13 @@
+bbdsl: "0.3"
+system:
+  name: "Missing Convention Ref Test"
+openings:
+  - bid: "1NT"
+    meaning:
+      hand:
+        hcp: { min: 15, max: 17 }
+    conventions_applied:
+      - ref: "bbdsl/nonexistent-v1"
+    responses:
+      - bid: "2C"
+        ref: "bbdsl/also-missing-v1"

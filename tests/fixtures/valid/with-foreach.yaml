@@ -1,0 +1,25 @@
+bbdsl: "0.3"
+system:
+  name: { en: "Foreach Test" }
+definitions:
+  patterns:
+    balanced:
+      shapes: ["4-3-3-3", "4-4-3-2"]
+openings:
+  - bid: "1${M}"
+    foreach_suit:
+      variable: M
+      over: majors
+    meaning:
+      description:
+        en: "11-15 HCP, 5+ ${M.en}"
+        zh-TW: "11-15 HCP，五張以上${M.zh-TW}"
+      hand:
+        hcp: { min: 11, max: 15 }
+    responses:
+      - bid: "2${M}"
+        meaning:
+          description:
+            en: "Simple raise"
+          hand:
+            hcp: { min: 6, max: 9 }
