@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bbdsl"
+version = "0.3.0a1"
+description = "Bridge Bidding Description Specification Language"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.0,<3.0",
+    "ruamel.yaml>=0.17.21",
+    "jsonschema>=4.17.0",
+    "click>=8.1.0",
+    "jinja2>=3.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "hypothesis>=6.70",
+    "ruff>=0.1",
+]
+
+[project.scripts]
+bbdsl = "bbdsl.cli.main:cli"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=bbdsl --cov-report=term"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]

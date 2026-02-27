@@ -17,7 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Planned Tech Stack (Phase 1)
 
-Python 3.11+, Pydantic v2 (strict mode), ruamel.yaml, jsonschema, Click (CLI), Jinja2 (templates), pytest + hypothesis (testing), mkdocs-material (docs). Package management via `uv` or `poetry`.
+Python 3.11+, Pydantic v2 (strict mode), ruamel.yaml, jsonschema, Click (CLI), Jinja2 (templates), pytest + hypothesis (testing), mkdocs-material (docs). Package management via **uv** (`pyproject.toml` + `uv.lock`).
 
 ### Expected Commands (once implementation begins)
 
@@ -60,9 +60,9 @@ Key architectural patterns:
 
 ```
 bbdsl/
-├── models/       # Pydantic v2 models
-├── core/         # Loader, validator, foreach_suit expander
-├── importers/    # BML, BBOalert importers
+├── models/       # Pydantic v2 models (CallNode, UnresolvedNode as Union type)
+├── core/         # Loader, validator, foreach_suit expander, opponent_matcher
+├── importers/    # BML, BBOalert importers (failed parse → UnresolvedNode)
 ├── exporters/    # BBOalert, BML, PBN, Convention Card, AI KB exporters
 ├── viewer/       # HTML interactive viewer (Phase 3)
 ├── ai/           # AI KB export, simulation (Phase 4)
@@ -85,6 +85,15 @@ bbdsl/
 - **es-kick-off-discovery**: Event Storming to clarify raw user ideas into structured specs
 - **formulation**: Transform ES output into feature files, API specs, and entity models
 - **new-requirement**: Handle incremental requirement changes across all spec artifacts
+
+## Key Architectural Decisions (ADR)
+
+See `BBDSL_IMPLEMENTATION-PLAN.md` § 架構決策記錄 for full details:
+
+- **ADR-1**: Dual licensing — MIT (code) + CC-BY-SA-4.0 (convention files)
+- **ADR-4**: `UnresolvedNode` polymorphic type for BML import failures (no `_` prefix fields)
+- **ADR-5**: `OpponentPattern` is pure data; matching logic lives in `core/opponent_matcher.py`
+- **ADR-7**: Phase 5 (community platform) is a separate repo
 
 ## Key Example
 

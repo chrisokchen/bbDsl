@@ -3,6 +3,82 @@
 
 ---
 
+## 架構決策記錄（ADR）
+
+> 以下為規格書審閱後確認的設計決策，作為後續實作的權威參考。
+
+### ADR-1: 雙軌授權（Dual Licensing）
+
+- **程式碼**（`bbdsl/` 套件、CLI、匯入匯出器、所有 `.py` 檔案）：**MIT License**
+- **Convention 檔案**（`registry/`、`examples/conventions/` 下的 `.bbdsl-conv.yaml`）：**CC-BY-SA-4.0**
+- 根目錄 `LICENSE` 為 MIT，另有 `LICENSE-CC-BY-SA-4.0` 和 `LICENSING.md` 聲明雙軌授權
+
+### ADR-2: 套件管理 — uv
+
+採用 **uv**（搭配 `pyproject.toml` + `uv.lock`），不使用 poetry。CI/CD 和貢獻者指南統一以 uv 為準。
+
+### ADR-3: Phase 1 驗證規則 — Stub 策略
+
+Phase 1 實作 8 條驗證規則（val-002, 004, 005, 006, 007, 008, 011, 012）。
+尚未實作的 val-001（hcp-coverage）和 val-003（response-complete）以 **stub** 形式存在，
+執行時產出 `warning: "此規則將於 Phase 2 完整實作"` 而非跳過，確保驗證報告結構一致。
+
+### ADR-4: UnresolvedNode 分層設計（取代 `_unresolved` / `_bml_original`）
+
+BML 匯入的未解析節點**不使用底線前綴**，改為**繼承/多型分層**設計：
+
+```python
+from pydantic import BaseModel, Field
+from typing import Union, List
+
+# 標準節點（核心 Schema 保持乾淨）
+class CallNode(BaseModel):
+    call: str
+    condition: str | None = None
+    meaning: str | None = None
+    next: list["Node"] = []
+
+# 匯入失敗的未解析節點（與 CallNode 同層級，允許混居）
+class UnresolvedNode(BaseModel):
+    is_unresolved: bool = Field(default=True, const=True)
+    bml_original: str       # 原始 BML 文字，保留證據
+    reason: str             # 解析失敗原因
+
+# 叫牌樹允許兩種節點混合
+Node = Union[CallNode, UnresolvedNode]
+```
+
+**工作流**：
+1. 匯入時：解析成功 → `CallNode`；失敗 → `UnresolvedNode`（含原始文字和失敗原因）
+2. 使用者手動修復：在 YAML 中看到 `is_unresolved: true` 區塊，參考 `bml_original` 改寫
+3. 驗證/編譯時：偵測到 `UnresolvedNode` → 產出 error，阻止匯出，強制修完才能打包
+
+### ADR-5: OpponentPattern 匹配邏輯歸屬
+
+`OpponentPattern` Pydantic 模型為**純資料結構**，不放 `matches()` 方法。
+匹配邏輯移至 `core/opponent_matcher.py` 作為獨立 service（Phase 2 實作）。
+
+### ADR-6: BML 匯入測試語料庫
+
+目標「HCP/花色長度正確提取率 > 80%」基於 **10 份公開 BML 範例**（涵蓋不同作者與風格）。
+測試語料庫置於 `tests/fixtures/bml_samples/`，每份 BML 附帶預期提取結果的 JSON。
+
+### ADR-7: Phase 5 獨立 Repo
+
+Phase 5（社群平台：FastAPI + React + PostgreSQL + OAuth）**獨立為另一個 repo**，
+本 repo（`bbdsl`）專注於 Phase 1-4 的 Python CLI 工具鏈。
+Phase 5 repo 以 `bbdsl` 作為核心依賴，透過 API 呼叫核心驗證/匯出功能。
+
+### ADR-8: Phase 優先級
+
+當時間不足時，按以下順序取捨：
+
+**Phase 1 (MVP) → Phase 2 (實戰價值) → Phase 3 (視覺化) → Phase 4 (AI 整合) → Phase 5 (社群平台)**
+
+Phase 3 優先於 Phase 4，因為視覺化對橋牌教學社群的即時價值更高。
+
+---
+
 ## 總覽
 
 ```
@@ -27,7 +103,9 @@ Schema+MVP       實戰價值          視覺化+教學       AI 整合         
 bbdsl/
 ├── pyproject.toml                # Python 專案設定
 ├── README.md
-├── LICENSE                       # CC-BY-SA-4.0
+├── LICENSE                       # MIT (程式碼)
+├── LICENSE-CC-BY-SA-4.0          # CC-BY-SA-4.0 (Convention 檔案)
+├── LICENSING.md                  # 雙軌授權聲明
 │
 ├── schema/                       # JSON Schema 定義
 │   ├── bbdsl-v0.3.json
@@ -48,7 +126,8 @@ bbdsl/
 │   │   ├── loader.py             # YAML 載入 + JSON Schema 驗證
 │   │   ├── expander.py           # foreach_suit 展開器
 │   │   ├── validator.py          # 14 條語義驗證規則
-│   │   └── selector.py           # selection_rules 叫牌選擇引擎
+│   │   ├── selector.py           # selection_rules 叫牌選擇引擎
+│   │   └── opponent_matcher.py   # OpponentPattern 匹配邏輯（ADR-5）
 │   │
 │   ├── importers/                # 匯入器
 │   │   ├── __init__.py
@@ -122,7 +201,7 @@ bbdsl/
 | CLI | Click | 簡潔、可組合 |
 | 模板引擎 | Jinja2 | HTML/BML/BBOalert 匯出共用 |
 | 測試 | pytest + hypothesis | property-based testing 適合驗證規則 |
-| 套件管理 | uv / pyproject.toml | 現代 Python 專案標準 |
+| 套件管理 | uv + pyproject.toml + uv.lock | 現代 Python 專案標準（見 ADR-2） |
 | 文件 | mkdocs-material | 技術文件標準 |
 
 ---
@@ -161,6 +240,7 @@ from typing import Optional, Union
 from .common import I18nString, Range, ForcingLevel
 
 class HandConstraint(BaseModel):
+    """標準手牌約束（核心 Schema，不含匯入過渡欄位 — 見 ADR-4）"""
     hcp: Optional[Range] = None
     controls: Optional[Range] = None
     losing_tricks: Optional[Range] = None
@@ -173,9 +253,6 @@ class HandConstraint(BaseModel):
     stopper_in: Optional[str] = None
     specific_cards: Optional[list[str]] = None
     conditions: Optional[list[dict]] = None
-    # BML 匯入標記
-    _unresolved: bool = False
-    _bml_original: Optional[str] = None
 
 class BidMeaning(BaseModel):
     description: Optional[I18nString] = None
@@ -205,7 +282,7 @@ class BidNode(BaseModel):
 **OpponentPattern 模型**（`models/context.py`）：
 ```python
 class OpponentPattern(BaseModel):
-    """對手行為模式匹配 — 支援 9 種語法形式"""
+    """對手行為模式 — 純資料結構，匹配邏輯在 core/opponent_matcher.py（見 ADR-5）"""
     # 簡單形式（字串：pass, double, any_action, any_bid）
     simple: Optional[str] = None
     # 具體叫品
@@ -222,10 +299,6 @@ class OpponentPattern(BaseModel):
     any_of: Optional[list['OpponentPattern']] = None
     all_of: Optional[list['OpponentPattern']] = None
     not_: Optional['OpponentPattern'] = Field(None, alias='not')
-
-    def matches(self, opponent_action: dict) -> bool:
-        """判斷對手行為是否匹配此模式"""
-        ...  # Phase 2 實作
 ```
 
 ---
@@ -320,7 +393,7 @@ def expand_foreach(node: dict, definitions: dict) -> list[dict]:
 | 1.3.5 | BML 語義提取 — forcing 關鍵字 | GF, INV, NF, signoff | 1h |
 | 1.3.6 | BML 語義提取 — 人工/alert 關鍵字 | artificial, transfer, relay, puppet | 1h |
 | 1.3.7 | BML → BBDSL 轉換器 | `bml_to_bbdsl(bml_nodes) → BBDSLDocument` | 6h |
-| 1.3.8 | 未解析標記與 TODO 產生 | `_unresolved: true` + `_bml_original` + TODO 清單 | 2h |
+| 1.3.8 | UnresolvedNode 產生（ADR-4） | `is_unresolved: true` + `bml_original` + `reason` + TODO 清單 | 2h |
 | 1.3.9 | BML 匯入測試 | 用 SAYC BML 範例測試 | 4h |
 | 1.3.10 | CLI — main.py | `bbdsl load/expand/validate/import` 四個子命令 | 4h |
 | 1.3.11 | CLI — 彩色輸出 | 驗證報告的 error/warning/info 顏色區分 | 2h |
@@ -336,7 +409,7 @@ $ bbdsl validate sayc.bbdsl.yaml                   # 驗證
 # ✅ val-006 pattern-ref-exists: PASSED
 # ⚠️ val-002 no-overlap: 2 warnings (1H/1S HCP overlap at 11-15)
 # ❌ val-008 alertable-check: 1 error (2D transfer not marked alertable)
-# 📋 BML import: 3 unresolved constraints (see TODO list)
+# 📋 BML import: 3 UnresolvedNode（見 ADR-4，需手動修復後才能匯出）
 ```
 
 #### BML 匯入器核心演算法
@@ -368,49 +441,53 @@ SUIT_CHAR_MAP = {
 ARTIFICIAL_KEYWORDS = {'artificial', 'art', 'relay', 'puppet', 'transfer', 'asking'}
 SHAPE_KEYWORDS = {'bal': 'balanced', 'balanced': 'balanced', 'semi-bal': 'semi_balanced'}
 
-def extract_semantics(description: str) -> dict:
-    """從 BML 自由文字描述中提取結構化語義"""
-    result = {"hand": {}, "_unresolved": False, "_bml_original": description}
+def extract_semantics(description: str) -> CallNode | UnresolvedNode:
+    """從 BML 自由文字描述中提取結構化語義（ADR-4: 分層設計）"""
+    hand = {}
+    forcing = None
+    artificial = False
     desc_lower = description.lower().strip()
 
     # 1. HCP
     hcp_match = HCP_PATTERN.search(description)
     if hcp_match:
-        result["hand"]["hcp"] = {"min": int(hcp_match.group(1)), "max": int(hcp_match.group(2))}
+        hand["hcp"] = {"min": int(hcp_match.group(1)), "max": int(hcp_match.group(2))}
     elif (m := re.search(r'(\d+)\+', description)):
-        result["hand"]["hcp"] = {"min": int(m.group(1))}
+        hand["hcp"] = {"min": int(m.group(1))}
 
     # 2. 花色長度
     for match in SUIT_LENGTH_PATTERN.finditer(description):
         length = int(match.group(1))
         suit = SUIT_CHAR_MAP.get(match.group(2).lower())
         if suit:
-            result["hand"][suit] = {"min": length}
+            hand[suit] = {"min": length}
 
     # 3. 牌型
     for keyword, ref in SHAPE_KEYWORDS.items():
         if keyword in desc_lower:
-            result["hand"]["shape"] = {"ref": ref}
+            hand["shape"] = {"ref": ref}
             break
 
     # 4. forcing
     for keyword, level in FORCING_MAP.items():
         if keyword in desc_lower:
-            result["forcing"] = level
+            forcing = level
             break
 
     # 5. 人工/alert
     for kw in ARTIFICIAL_KEYWORDS:
         if kw in desc_lower:
-            result["artificial"] = True
-            result["alertable"] = True
+            artificial = True
             break
 
-    # 6. 如果 hand 仍為空，標記為未解析
-    if not result["hand"]:
-        result["_unresolved"] = True
+    # 6. 如果 hand 仍為空 → 退化為 UnresolvedNode
+    if not hand:
+        return UnresolvedNode(
+            bml_original=description,
+            reason="無法從描述文字中提取手牌約束"
+        )
 
-    return result
+    return CallNode(call="...", condition=str(hand), meaning=description)
 ```
 
 ---
@@ -593,7 +670,10 @@ $ bbdsl import bboalert my_rules.bboalert -o my_system.bbdsl.yaml
 
 ---
 
-## Phase 5: 社群平台（24 → 32 週）
+## Phase 5: 社群平台（24 → 32 週）— 獨立 Repo（ADR-7）
+
+> **⚠️ Phase 5 將獨立為另一個 repo**（全端 Web 專案：FastAPI + React + PostgreSQL），
+> 本 repo 專注於 Phase 1-4 的 Python CLI 工具鏈。Phase 5 repo 以 `bbdsl` 套件為核心依賴。
 
 ### 🎯 里程碑目標
 > **橋牌社群可以在線上搜尋/分享/組合 Convention 模組，
@@ -650,7 +730,7 @@ $ bbdsl import bboalert my_rules.bboalert -o my_system.bbdsl.yaml
 
 | 風險 | 影響 | 機率 | 緩解策略 |
 |------|------|------|----------|
-| BML 格式有未文件化的邊界案例 | 匯入器不完整 | 高 | 先支援 80% 常見語法，邊界案例標記 _unresolved |
+| BML 格式有未文件化的邊界案例 | 匯入器不完整 | 高 | 先支援 80% 常見語法，邊界案例退化為 UnresolvedNode（ADR-4）；基於 10 份公開 BML 樣本測試（ADR-6） |
 | BBOalert 格式變化 | 匯出器不相容 | 中 | 版本化匯出，支援多版本格式 |
 | 橋牌社群對 YAML 的接受度 | 採用率低 | 中 | 強調 BML 匯入 + BBOalert 匯出的即時價值 |
 | 叫牌選擇的語義複雜度 | selection_rules 不夠表達 | 中 | Phase 2 先用 priority，selection_rules 漸進增強 |
