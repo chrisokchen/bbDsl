@@ -669,3 +669,209 @@ def import_bboalert_cmd(path: Path, name: str | None, output: Path | None) -> No
 
     if n_unresolved:
         sys.exit(1)
+
+
+# ────────────────────── Registry Commands (5.1.7) ──────────────────────
+
+
+@cli.group("registry")
+@click.option(
+    "--api-url",
+    envvar="BBDSL_API_URL",
+    default="http://localhost:8000/api/v1",
+    show_default=True,
+    help="Platform API base URL.",
+)
+@click.option(
+    "--token",
+    envvar="BBDSL_API_TOKEN",
+    default=None,
+    help="API bearer token (or set BBDSL_API_TOKEN env var).",
+)
+@click.pass_context
+def registry_group(ctx: click.Context, api_url: str, token: str | None) -> None:
+    """Interact with the BBDSL Platform Convention Registry."""
+    from bbdsl.cli.registry_client import RegistryClient
+
+    ctx.ensure_object(dict)
+    ctx.obj["client"] = RegistryClient(api_url=api_url, token=token)
+
+
+@registry_group.command("publish")
+@click.argument("path", type=click.Path(exists=True, path_type=Path))
+@click.option("--name", "-n", required=True, help="Convention display name.")
+@click.option("--namespace", "-ns", required=True,
+              help="Namespace ID (e.g. 'precision', 'sayc').")
+@click.option("--version", "-v", default="1.0.0", show_default=True,
+              help="SemVer version string.")
+@click.option("--description", "-d", default=None,
+              help="Short description of the convention.")
+@click.option("--tags", "-t", default=None,
+              help="Comma-separated tags (e.g. 'natural,2/1,gf').")
+@click.pass_context
+def registry_publish(
+    ctx: click.Context,
+    path: Path,
+    name: str,
+    namespace: str,
+    version: str,
+    description: str | None,
+    tags: str | None,
+) -> None:
+    """Publish a BBDSL YAML file to the Convention Registry.
+
+    The server validates the YAML automatically; invalid files
+    are rejected.
+    """
+    from bbdsl.cli.registry_client import RegistryError
+
+    yaml_content = path.read_text(encoding="utf-8")
+    client = ctx.obj["client"]
+
+    try:
+        result = client.publish(
+            name=name,
+            namespace=namespace,
+            version=version,
+            yaml_content=yaml_content,
+            description=description,
+            tags=tags,
+        )
+    except RegistryError as e:
+        raise click.ClickException(str(e)) from e
+
+    click.secho(
+        f"✅ Published '{result['name']}' "
+        f"({result['namespace']} v{result['version']}) "
+        f"— ID {result['id']}",
+        fg="green",
+    )
+
+
+@registry_group.command("search")
+@click.option("--query", "-q", default=None,
+              help="Search by name or namespace.")
+@click.option("--tag", default=None,
+              help="Filter by tag.")
+@click.option("--namespace", "-ns", default=None,
+              help="Filter by exact namespace.")
+@click.option("--author", default=None,
+              help="Filter by author name.")
+@click.option("--sort", default="newest", show_default=True,
+              type=click.Choice(["newest", "oldest", "downloads", "name"]),
+              help="Sort order.")
+@click.option("--page", default=1, show_default=True, type=int)
+@click.option("--page-size", default=20, show_default=True, type=int)
+@click.option("--json", "as_json", is_flag=True, default=False,
+              help="Output raw JSON instead of formatted table.")
+@click.pass_context
+def registry_search(
+    ctx: click.Context,
+    query: str | None,
+    tag: str | None,
+    namespace: str | None,
+    author: str | None,
+    sort: str,
+    page: int,
+    page_size: int,
+    as_json: bool,
+) -> None:
+    """Search the Convention Registry."""
+    from bbdsl.cli.registry_client import RegistryError
+
+    client = ctx.obj["client"]
+
+    try:
+        data = client.search(
+            query=query,
+            tag=tag,
+            namespace=namespace,
+            author=author,
+            sort=sort,
+            page=page,
+            page_size=page_size,
+        )
+    except RegistryError as e:
+        raise click.ClickException(str(e)) from e
+
+    if as_json:
+        click.echo(json.dumps(data, ensure_ascii=False, indent=2))
+        return
+
+    items = data.get("items", [])
+    total = data.get("total", 0)
+
+    if not items:
+        click.secho("No conventions found.", fg="yellow")
+        return
+
+    click.echo(
+        f"Found {total} convention(s) "
+        f"(page {data.get('page', 1)}/{max(1, -(-total // page_size))}):\n"
+    )
+    for item in items:
+        name_str = click.style(item["name"], fg="cyan", bold=True)
+        ns_str = f"{item['namespace']} v{item['version']}"
+        dl_str = f"{item['downloads']} downloads"
+        click.echo(f"  {name_str}  ({ns_str})  [{dl_str}]")
+        if item.get("description"):
+            click.echo(f"    {item['description']}")
+        if item.get("tags"):
+            click.echo(
+                f"    tags: {item['tags']}"
+            )
+        click.echo(f"    by {item['author_name']}  "
+                    f"({item['created_at'][:10]})")
+        click.echo()
+
+
+@registry_group.command("install")
+@click.argument("namespace")
+@click.option("--version", "-v", default=None,
+              help="Specific version (default: latest).")
+@click.option(
+    "--output", "-o",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Output YAML file path (default: <namespace>.bbdsl.yaml).",
+)
+@click.pass_context
+def registry_install(
+    ctx: click.Context,
+    namespace: str,
+    version: str | None,
+    output: Path | None,
+) -> None:
+    """Download a convention from the Registry by namespace.
+
+    If --version is omitted the latest version is fetched.
+    The YAML content is saved to a local file.
+    """
+    from bbdsl.cli.registry_client import RegistryError
+
+    client = ctx.obj["client"]
+
+    try:
+        data = client.install(namespace, version=version)
+    except RegistryError as e:
+        raise click.ClickException(str(e)) from e
+
+    # Determine output path
+    if output is None:
+        safe_ns = namespace.replace("/", "_")
+        output = Path(f"{safe_ns}.bbdsl.yaml")
+
+    yaml_content = data.get("yaml_content", "")
+    if not yaml_content:
+        raise click.ClickException(
+            "Server returned empty YAML content."
+        )
+
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(yaml_content, encoding="utf-8")
+
+    click.secho(
+        f"✅ Installed '{data.get('name', namespace)}' "
+        f"v{data.get('version', '?')} → {output}",
+        fg="green",
+    )
