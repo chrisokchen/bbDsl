@@ -361,6 +361,48 @@ def export_dealer_cmd(
         click.echo(script, nl=False)
 
 
+@export_group.command("pbn")
+@click.argument("path", type=click.Path(exists=True, path_type=Path))
+@click.option("--output", "-o", type=click.Path(path_type=Path), help="Output .pbn file.")
+@click.option("--deals", "-n", default=10, show_default=True, type=int,
+              help="Number of deals to simulate.")
+@click.option("--seed", default=None, type=int, help="Random seed.")
+@click.option("--dealer", default="N", show_default=True,
+              type=click.Choice(["N", "E", "S", "W"]),
+              help="Starting dealer seat.")
+@click.option("--locale", "-l", default="en", show_default=True,
+              help="Language for system name.")
+def export_pbn_cmd(
+    path: Path,
+    output: Path | None,
+    deals: int,
+    seed: int | None,
+    dealer: str,
+    locale: str,
+) -> None:
+    """Export simulated deals as PBN (Portable Bridge Notation)."""
+    from bbdsl.core.loader import load_document
+    from bbdsl.exporters.pbn_exporter import export_pbn as _export
+
+    try:
+        doc = load_document(path)
+        pbn_text = _export(
+            doc,
+            output_path=output,
+            n_deals=deals,
+            seed=seed,
+            dealer=dealer,
+            locale=locale,
+        )
+    except Exception as e:
+        raise click.ClickException(str(e)) from e
+
+    if output:
+        click.secho(f"Exported {deals} deal(s) as PBN → {output}", fg="green")
+    else:
+        click.echo(pbn_text, nl=False)
+
+
 @cli.command("quiz")
 @click.argument("path", type=click.Path(exists=True, path_type=Path))
 @click.option("--output", "-o", type=click.Path(path_type=Path), help="Output .html file.")
@@ -404,6 +446,111 @@ def quiz_cmd(
         click.secho(f"Quiz ({n_questions} questions) → {output}", fg="green")
     else:
         click.echo(html, nl=False)
+
+
+@cli.command("simulate")
+@click.argument("path", type=click.Path(exists=True, path_type=Path))
+@click.option("--deals", "-n", default=10, show_default=True, type=int,
+              help="Number of deals to simulate.")
+@click.option("--output", "-o", type=click.Path(path_type=Path),
+              help="Output .json file for full results.")
+@click.option("--ew-system", "ew_system", type=click.Path(exists=True, path_type=Path),
+              default=None, help="BBDSL YAML file for E/W bidding system.")
+@click.option("--dealer", default="N", show_default=True,
+              type=click.Choice(["N", "E", "S", "W"]),
+              help="Starting dealer seat.")
+@click.option("--seed", default=None, type=int, help="Random seed for reproducibility.")
+def simulate_cmd(
+    path: Path,
+    deals: int,
+    output: Path | None,
+    ew_system: Path | None,
+    dealer: str,
+    seed: int | None,
+) -> None:
+    """Simulate bridge bidding auctions using a BBDSL system."""
+    from bbdsl.core.loader import load_document
+    from bbdsl.core.sim_engine import simulate as _simulate
+
+    try:
+        ns_doc = load_document(path)
+        ew_doc = load_document(ew_system) if ew_system else None
+        results = _simulate(ns_doc, n_deals=deals, ew_doc=ew_doc, dealer=dealer, seed=seed)
+    except Exception as e:
+        raise click.ClickException(str(e)) from e
+
+    # Print summary to stdout
+    for r in results:
+        auction_str = " ".join(f"{s.seat}:{s.bid}" for s in r.auction)
+        if r.passed_out:
+            click.echo(f"Deal {r.deal_number}: (Passed out)")
+        else:
+            click.echo(f"Deal {r.deal_number}: Auction: {auction_str} → {r.final_contract}")
+
+    # Optionally write full JSON output
+    if output:
+        output = Path(output)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        import json as _json
+        data = [r.to_dict() for r in results]
+        output.write_text(_json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        click.secho(f"Results ({len(results)} deals) → {output}", fg="green")
+
+
+@cli.command("compare")
+@click.argument("path_a", type=click.Path(exists=True, path_type=Path))
+@click.argument("path_b", type=click.Path(exists=True, path_type=Path))
+@click.option("--deals", "-n", default=50, show_default=True, type=int,
+              help="Number of deals to simulate.")
+@click.option("--output", "-o", type=click.Path(path_type=Path),
+              help="Output .json file for full report.")
+@click.option("--seed", default=None, type=int, help="Random seed.")
+@click.option("--locale", "-l", default="en", show_default=True,
+              help="Language for system names (en or zh-TW).")
+@click.option("--dealer", default="N", show_default=True,
+              type=click.Choice(["N", "E", "S", "W"]),
+              help="Starting dealer seat.")
+def compare_cmd(
+    path_a: Path,
+    path_b: Path,
+    deals: int,
+    output: Path | None,
+    seed: int | None,
+    locale: str,
+    dealer: str,
+) -> None:
+    """Compare two BBDSL bidding systems on the same random deals."""
+    from bbdsl.core.loader import load_document
+    from bbdsl.core.comparator import compare_systems as _compare
+
+    try:
+        doc_a = load_document(path_a)
+        doc_b = load_document(path_b)
+        report = _compare(doc_a, doc_b, n_deals=deals, seed=seed, locale=locale, dealer=dealer)
+    except Exception as e:
+        raise click.ClickException(str(e)) from e
+
+    click.echo(report.summary_text(locale=locale))
+
+    # Show a sample of diff cases
+    if report.diff_cases:
+        click.echo("\nSample differences (first 5):")
+        for dc in report.diff_cases[:5]:
+            click.echo(
+                f"  Deal {dc.deal_number}: "
+                f"{report.system_a}→{dc.contract_a or 'Pass'}  "
+                f"{report.system_b}→{dc.contract_b or 'Pass'}"
+            )
+
+    if output:
+        import json as _json
+        output = Path(output)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(
+            _json.dumps(report.to_dict(), ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        click.secho(f"Report → {output}", fg="green")
 
 
 @cli.command("select")

@@ -1,185 +1,134 @@
-# BBDSL — Bridge Bidding Description Specification Language
+# BBDSL & BCC 系統架構白皮書
+**下一代橋牌人工智慧與不完全資訊賽局的開源通訊協定**
 
-> 結構化、可驗證、AI 可讀的橋牌叫牌制度描述語言
+> **版本:** 0.1.0-draft | **發布日期:** 2026-02
+> **領域:** 人工智慧 (AI)、賽局理論 (Game Theory)、橋牌 (Contract Bridge)
 
-[![License: MIT](https://img.shields.io/badge/Code-MIT-green.svg)](LICENSE)
-[![License: CC BY-SA 4.0](https://img.shields.io/badge/Conventions-CC_BY--SA_4.0-blue.svg)](LICENSE-CC-BY-SA-4.0)
-[![Spec Version](https://img.shields.io/badge/spec-v0.3--draft-blue)]()
+---
 
-## 為什麼需要 BBDSL？
+## 摘要 (Abstract)
 
-現有橋牌叫牌格式各有侷限：
+傳統的電腦橋牌 AI（如 GIB, WBridge5）在「雙明手（Double-Dummy）」分析上已臻完美，但在面對真實的「不完全資訊（Imperfect Information）」狀態時，往往表現得像是一台死背規則的機器。它們缺乏人類頂尖國手的核心技能：**「直覺（模糊邊界）」**與**「情報戰（戰術隱瞞與欺敵）」**。
 
-| 格式 | 能做什麼 | 缺什麼 |
-|------|----------|--------|
-| **BML** | 描述「叫什麼」，產出教學文件 | 無法驗證矛盾、無結構化語義 |
-| **BBOalert** | 線上對打的 Alert 說明 | 序列→文字映射，無法推理邏輯 |
-| **Dealer** | 發牌模擬條件篩選 | 只有牌型條件，無叫牌流程 |
-| **PBN** | 牌譜記錄與交換 | 記錄「發生了什麼」而非「應該怎麼叫」 |
+本白皮書提出了一個雙層式的全新橋牌 AI 架構：
+1. [**BBDSL (Bridge Bidding Description Specification Language)**](./README-bbDsl.md)：一套基於 YAML、為機器學習而生的橋牌制度描述語言，賦予規則「模糊邊界」與「戰術彈性」。
+2. [**BCC (Bridge Communication Calculus)**](./README-bcc.md)：一套基於「貝氏機率微積分」與「夏農資訊熵」的賽局推理引擎，讓 AI 透過計算「資訊洩漏的代價」，自動湧現出戰術隱瞞與假信號的智慧。
 
-**BBDSL 填補語義空白** — 以 YAML 定義叫牌制度的完整語義，讓機器能驗證邏輯一致性，讓 AI 能「理解」而非僅「複述」制度。
+這不僅是橋牌 AI 的下一個里程碑，更是探索**受限通道通訊 (Restricted Channel Communication)** 與 **多智能體強化學習 (MARL)** 的絕佳開源沙盒。
 
-## 生態系定位
+---
 
-```
-                    ┌─────────────────────────────────────┐
-                    │         BBDSL (知識庫核心)            │
-                    │  結構化語義 · 可驗證 · AI 可讀        │
-                    └──────────┬──────────────┬────────────┘
-           ┌───────────────────┼──────────────┼───────────────────┐
-           ▼                   ▼              ▼                   ▼
-    ┌─────────────┐  ┌──────────────┐ ┌─────────────┐  ┌──────────────┐
-    │   BBOalert  │  │  BML → HTML  │ │ Convention  │  │ AI Knowledge │
-    │  (線上對打)  │  │  /LaTeX/PDF  │ │    Card     │  │    Base      │
-    │  自動 Alert  │  │  (教學出版)   │ │ (WBF/ACBL) │  │ (RAG/Bot)   │
-    └─────────────┘  └──────────────┘ └─────────────┘  └──────────────┘
+## 1. 痛點與背景 (Background)
 
-     匯入層                                                    ▼
-    ┌─────────────┐                                   ┌──────────────┐
-    │ BML → BBDSL │                                   │    Dealer     │
-    │  BBOalert →  │                                   │  (發牌模擬)   │
-    └─────────────┘                                   └──────────────┘
-```
+### 1.1 現有橋牌 DSL 的極限
+目前開源界主流的橋牌標記語言（如 BML 或 BBO BSS）主要為「人類排版」或「線上 Alert 系統」設計。它們是純粹的布林邏輯（Boolean Logic）：
+*   例如：`1NT = 15-17 HCP, Balanced`。
+*   **AI 的困境**：遇到 1NT 開叫時，傳統 AI 會將 14 點的可能世界機率直接砍成 `0.0`。一旦人類對手拿 14 點好牌「升級開叫」，AI 的算牌引擎就會崩潰（System Crash）。
 
-## 快速一覽
+### 1.2 現有 AI 的「誠實詛咒」
+現有 AI 依賴啟發式規則（Heuristic Rules）加上蒙地卡羅模擬。當 AI 拿到 4 張堅固黑桃時，規則會強制它叫出黑桃。AI 不懂：**這聲叫牌雖然幫助了搭檔，但也同時向莊家洩漏了致命的情報，導致莊家完美避開飛牌盲點。**
 
+---
+
+## 2. BBDSL：具備 AI 語義的制度描述語言
+
+**BBDSL** 是整個系統的「先驗知識庫」。它不僅定義了叫牌的點力與牌型，更獨創性地引入了 `ai_meta`（AI 元資料）區塊，讓冰冷的規則具備了機率彈性。
+
+### 2.1 核心特性
+*   **模組化 (Modularity)**：特約（Conventions，如 Stayman）獨立定義，可跨制度引用。
+*   **模糊邊界 (Tolerances)**：定義容錯率，允許 AI 在推演時保留邊界情況的長尾機率。
+*   **資訊意圖 (Intent)**：標記該叫品是「建設性 (Constructive)」、「破壞性 (Destructive)」還是「詢問 (Interrogative)」。
+
+### 2.2 YAML 語法範例
 ```yaml
-bbdsl: "0.3"
-
-system:
-  name:
-    zh-TW: "精準制"
-    en: "Precision Club"
-  version: "2.0.0"
-  authors:
-    - name: "C.C. Wei"
-  description:
-    zh-TW: "經典精準制，強梅花開叫，配合現代特約"
-    en: "Classic Precision Club with modern conventions"
-  locale: "zh-TW"
-  license: "CC-BY-SA-4.0"
-
-definitions:
-  strength_methods:
-    hcp:
-      description: { zh-TW: "大牌點 (A=4, K=3, Q=2, J=1)", en: "High Card Points" }
-      range: [0, 37]
-  patterns:
-    balanced:
-      description: { zh-TW: "平均牌型", en: "Balanced" }
-      shapes: ["4-3-3-3", "4-4-3-2", "5-3-3-2"]
-
-conventions:
-  stayman:
-    id: "bbdsl/stayman-v1"
-    name: { zh-TW: "史泰曼", en: "Stayman" }
-    trigger: { after: ["1NT"], bid: "2C" }
-    responses:
-      - bid: "2D"
-        meaning:
-          description: { zh-TW: "無四張高花", en: "No 4-card major" }
-      - bid: "2H"
-        meaning:
-          description: { zh-TW: "四張紅心", en: "4+ hearts" }
-          hand: { hearts: { min: 4 } }
-
-openings:
-  - bid: "1C"
+  - bid: "1NT"
+    id: "open-1nt"
     meaning:
-      description: { zh-TW: "16+ HCP，人工強梅花", en: "16+ HCP, artificial strong club" }
+      description: "無王開叫，15-17點，平均牌型"
       hand:
-        hcp: { min: 16 }
-      artificial: true
-      alertable: true
-      forcing: one_round
+        hcp: { min: 15, max: 17 }
+        shape: { ref: "balanced" }
+    # ====== AI 擴充區塊 ======
+    ai_meta:
+      intent: "constructive"
+      tactical_flexibility: "strict"
+      tolerances:                      # 定義模糊邊界
+        hcp: 
+          margin: 1                    # 允許 14 或 18 點的降/升級叫
+          distribution: "gaussian"
+      information_profile:
+        leakage_risk: "critical"       # 洩漏風險：極高
+      psych_probability: 0.01          # 允許 1% 的極端心理叫機率
 ```
 
-## 核心特性
+---
 
-### 結構化語義
+## 3. BCC：橋牌通訊微積分 (The Logic Engine)
 
-- **牌力條件**：HCP、控制、失墩、總點力，範圍式約束
-- **牌型描述**：通用形式 (`4-3-3-3`) 與精確形式 (`4=4=1=4`)、萬用字元 (`*`)
-- **叫品語義**：forcing level、人工/自然、轉換叫、示叫、alertable
-- **Dealer 相容**：`hand constraint` 語法對應 Dealer script 函數 (hcp, shape, losers, top, hascard...)
+如果 BBDSL 是字典，那麼 **BCC (Bridge Communication Calculus)** 就是大腦。它將叫牌與防禦出牌視為在受限通道中發射的「信號（Signals）」。
 
-### 情境感知
+### 3.1 貝氏大腦與粒子濾波 (Bayesian Filter)
+BCC 不使用窮舉法（面對 $52!$ 的狀態空間是不可能的）。BCC 引擎在內部維護了上萬個「可能世界（Particles）」。當觀察到任何叫牌或出牌 $c$ 時，根據 BBDSL 的定義，計算貝氏後驗機率：
 
-- **座位**：1st / 2nd / 3rd / 4th 不同開叫策略
-- **身價**：None / Favorable / Unfavorable / Both 調整叫牌激進度
-- **對手行為**：9 種模式語法 — 具體叫品、範圍、類型 (overcall/preempt/double...)、邏輯組合
+$$ P_{t+1}(w \mid c) = \frac{\mathcal{L}(c \mid w, \Gamma) \cdot P_t(w)}{\sum_{w' \in W} \mathcal{L}(c \mid w', \Gamma) \cdot P_t(w')} $$
 
-### 模組化特約
+這使得 BCC 能像人類大師一樣「削蘋果」——隨著叫牌進行，機率分佈會逐漸坍縮，精準鎖定對手的牌型，同時**保留對手騙人的雜訊機率**。
 
-- 獨立 `.bbdsl-conv.yaml` 檔案，支援參數化
-- Namespace registry（`bbdsl/stayman-v1`、`chris/precision-relay-v2`）
-- 衝突偵測（`conflicts_with`）、依賴宣告（`requires`、`recommends`）
+### 3.2 情報戰方程式 (Minimax of Information Warfare)
+這是 BCC 最核心的突破。在決定下一步行動時，BCC 會計算**夏農資訊熵 (Shannon Entropy)** 的變化量，我們稱之為 **資訊價值 (Value of Information, VoI)**。
 
-### 機器可驗證
+AI 出牌或叫牌的**總體期望效用 ($\mathcal{U}$)** 定義為：
 
-14 條驗證規則：HCP 覆蓋完整性、叫品重疊偵測、Convention 引用完整性、forcing 一致性、foreach 展開衝突檢測等。
+$$ \mathcal{U}(b) = EV_{base}(b) + \alpha \cdot VoI(b, Partner) - \beta \cdot VoI(b, Opponents) $$
 
-### AI-First 設計
+*   **$EV_{base}$**：該行動的物理/建設性期望值。
+*   **$\alpha \cdot VoI(Partner)$**：搭檔獲得情報後的預期收益（啟蒙效應）。
+*   **$\beta \cdot VoI(Opponents)$**：對手獲得情報後的預期收益（洩漏代價）。
 
-- JSON 中間格式天然適合 LLM RAG
-- `ai_knowledge_base` 匯出格式：扁平化序列 + 自然語言描述
-- 結構化語義讓 AI 能理解叫牌邏輯而非只記住叫品
+### 3.3 湧現的「戰術隱瞞」與「假叫」
+透過這條方程式，AI 不需要人類教導「何時該騙人」。
+如果 AI 計算出：誠實叫牌會讓莊家的資訊熵暴跌（看透我方底牌），且 $\beta \cdot VoI(Opp) \gg \alpha \cdot VoI(Partner)$ 時，方程式的收益將變為負值。**此時，AI 的數學本能會自動推翻 BBDSL 的常規，選擇「Pass（保持靜默）」或發射「假信號（Falsecarding）」。**
 
-## 規格文件
+---
 
-| 文件 | 說明 |
-|------|------|
-| [BBDSL-SPEC-v0.3.md](BBDSL-SPEC-v0.3.md) | 核心規格書 — schema 定義、手牌條件、對手模式語言、驗證規則 |
-| [BBDSL-SUPPLEMENT-v0.3.md](BBDSL-SUPPLEMENT-v0.3.md) | 設計補充 — 選擇引擎、PBN/BSS/LIN 整合、BML 匯入映射 |
-| [BBDSL_IMPLEMENTATION-PLAN.md](BBDSL_IMPLEMENTATION-PLAN.md) | 實作計畫 — 5 階段路線圖、技術架構、Sprint 細分 |
-| [bbdsl-schema-v0.3.json](bbdsl-schema-v0.3.json) | JSON Schema (draft-07) |
+## 4. 系統架構與機器學習整合
 
-## 實作路線圖
+為了解決即時運算的效能問題，BBDSL & BCC 系統最終將與現代深度學習（Deep Learning）整合：
 
-```
-Phase 1 (0-6 週)     Phase 2 (6-12 週)     Phase 3 (12-18 週)    Phase 4 (18-24 週)    Phase 5 (24-32 週)
-Schema + MVP         實戰價值               視覺化 + 教學          AI 整合               社群平台
-─────────────────────────────────────────────────────────────────────────────────────────────────
-Pydantic 模型        BBOalert 匯出/匯入     HTML 互動 Viewer      AI KB 匯出            Convention Registry
-foreach_suit 展開器  BML 匯出              Convention Card 產生   Dealer 雙向轉換        線上編輯器
-驗證器 (8 規則)      選擇引擎               SVG 叫牌樹            模擬對練引擎           Diff / Merge
-BML 匯入 MVP         SAYC + 2/1 GF 範例    練習題產生器           制度比較器             社群評分
-精準制範例            完整 14 條驗證規則      教學模式              PBN 匯出              LIN 整合
-```
+1. **信念網路 (Belief Network)**：取代純粹的粒子濾波，使用 Transformer 架構讀取 BBDSL 與叫牌歷史，直接輸出四家牌的潛在機率矩陣。
+2. **價值網路 (Value Network)**：輸入機率矩陣，瞬間輸出 $EV$ 與 $VoI$ 估算值。
+3. **ISMCTS (資訊集蒙地卡羅樹搜尋)**：在決策的葉節點上進行前瞻搜尋，尋找 Minimax 賽局的納什均衡。
 
-**技術基礎**：Python 3.11+、Pydantic v2、ruamel.yaml、Click CLI、pytest + hypothesis、uv 套件管理
+---
 
-## 專案結構
+## 5. 專案路線圖 (Roadmap)
 
-```
-bbdsl/
-├── BBDSL-SPEC-v0.3.md            # 核心規格書
-├── BBDSL-SUPPLEMENT-v0.3.md      # 設計補充
-├── BBDSL_IMPLEMENTATION-PLAN.md  # 實作計畫
-├── bbdsl-schema-v0.3.json        # JSON Schema
-├── process/
-│   └── 1-discover/               # 探索階段產出（競品分析、調查報告、範例 YAML）
-└── prompts/                      # AI 輔助工作流程提示詞
-```
+我們將這個宏大的願景分為四個開源開發階段：
 
-## 範例制度
+*   [ ] **Phase 1: 基礎建設 (The Foundation)**
+    *   完成 BBDSL YAML 規格的 JSON Schema 驗證器。
+    *   開發 Python 版本的 BBDSL Parser。
+*   [ ] **Phase 2: 貝氏推演 POC (The Bayesian Brain)**
+    *   實作輕量級粒子濾波器，能讀取 BBDSL 進行「多輪叫牌機率坍縮」的視覺化終端機工具。
+*   [ ] **Phase 3: 賽局環境與強化學習沙盒 (The Sandbox)**
+    *   將系統封裝為相容於 `PettingZoo` / `OpenSpiel` 的多智能體強化學習 (MARL) 環境。
+*   [ ] **Phase 4: 自我對弈與超人 AI (Self-Play)**
+    *   訓練並釋出第一版搭載 BCC 引擎的開源神經網路權重。
 
-- **SAYC** (Standard American Yellow Card)：[process/1-discover/sayc.bbdsl.yaml](process/1-discover/sayc.bbdsl.yaml)
+---
 
-## 設計原則
+## 6. 加入我們 (Call to Action)
 
-1. **模組化** — Convention 獨立定義，支援 namespace、版本化、參數化
-2. **繼承性** — 制度 `base` 繼承 + 節點 `context_overrides` 差異化表達
-3. **可驗證性** — 14 條規則涵蓋結構、引用、語義、情境一致性
-4. **情境感知** — 座位、身價、對手行為完整建模
-5. **對稱語法糖** — `foreach_suit` 寫時展開，減少重複定義
-6. **生態相容** — Dealer 語法相容、BML/BBOalert 雙向匯入匯出
-7. **漸進式定義** — `completeness` 欄位支援從草稿逐步精煉至完整
-8. **AI-First** — 結構化語義天然適合 LLM RAG 與知識庫建構
+這個計畫正處於從「理論構想」轉向「程式碼實作」的激動人心時刻。我們正在尋找以下領域的貢獻者：
 
-## 授權
+*   🃏 **橋牌專家 / 國手**：協助我們撰寫並完善各種制度的 BBDSL YAML 檔案。
+*   🐍 **Python / C++ 開發者**：參與 Parser、粒子濾波器以及終端模擬器的開發。
+*   🧠 **AI / 機器學習研究員**：探討如何將這套貝氏推演與 Transformer / MCTS 架構結合。
 
-本專案採用**雙軌授權**（詳見 [LICENSING.md](LICENSING.md)）：
+歡迎在 GitHub 提交 Issue、討論架構，或直接發起 Pull Request！
 
-- **程式碼**：[MIT License](LICENSE)
-- **叫牌特約檔案**（`registry/`、`examples/conventions/`）：[CC-BY-SA-4.0](LICENSE-CC-BY-SA-4.0)
+> **"In the game of imperfect information, silence is a calculated vector, and deception is just advanced mathematics."**
+> *(在不完全資訊的賽局中，沉默是經過計算的向量，而欺騙不過是高階的數學。)*
+
+---
+*License: MIT License*

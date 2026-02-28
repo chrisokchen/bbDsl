@@ -6078,10 +6078,1386 @@ IEEE/ACM mid–high tier ready
 
 ### ⑤ DSL architecture reference model（IEEE style）
 
+下面是你要的：
+
+# ⭐ **Bridge DSL Architecture Reference Model（IEEE-style Reference Architecture）**
+
+這是：
+
+✅ IEEE / ISO architecture reference model 風格
+✅ 可直接放論文 / whitepaper / standard proposal
+✅ 符合 ISO/IEC/IEEE 42010 / 42020 架構描述方法
+✅ DSL → compiler → reasoning → execution 完整 reference architecture
+
+我會給：
+
+* IEEE-style reference model structure
+* DSL architecture layers
+* architecture components
+* interfaces
+* views（IEEE architecture description style）
+* diagrams
+
+---
+
+# 🧠 1️⃣ IEEE Reference Architecture 基本原則（用於 DSL）
+
+在 IEEE / ISO 定義中：
+
+* **reference model** → 抽象概念與關係
+* **reference architecture** → 將功能映射到系統組件 ([維基百科][1])
+
+參考架構：
+
+* 提供 template solution
+* 定義組件與互動
+* 不綁定具體實作 ([維基百科][2])
+
+👉 我下面設計完全依這種形式。
+
+---
+
+# ⭐ 2️⃣ Bridge DSL Architecture Reference Model（Top Level）
+
+---
+
+## 📊 Reference Model — Conceptual View
+
+```
+Bridge DSL Environment
+ ├─ Language Layer
+ ├─ Semantic Layer
+ ├─ Execution Layer
+ ├─ Reasoning Layer
+ └─ Infrastructure Layer
+```
+
+---
+
+## 📄 IEEE-style Definition
+
+> The Bridge DSL architecture defines an abstract framework describing the functional decomposition, component interactions, and data flow for DSL-based bidding reasoning systems.
+
+---
+
+---
+
+# ⭐ 3️⃣ DSL Architecture Functional Decomposition
+
+（IEEE reference model 必須）
+
+---
+
+## 📊 Functional Decomposition
+
+```
+Bridge DSL System
+  ├─ Language Definition
+  ├─ Static Analysis
+  ├─ Semantic Representation
+  ├─ Inference Processing
+  ├─ Runtime Execution
+  ├─ Reasoning Services
+  └─ External Interfaces
+```
+
+這是 DSL domain 的標準 decomposition。
+
+---
+
+---
+
+# ⭐ 4️⃣ Bridge DSL Layered Reference Architecture
+
+（IEEE architecture style）
+
+---
+
+## 📊 Layered Architecture
+
+```
++------------------------------------------------+
+| Application Layer                              |
+|  - Strategy analysis                           |
+|  - Simulation                                  |
+|  - Verification                                |
++------------------------------------------------+
+| DSL Execution Layer                            |
+|  - Interpreter                                 |
+|  - Execution Manager                           |
++------------------------------------------------+
+| Reasoning Layer                                |
+|  - Bayesian Engine                             |
+|  - Constraint Solver                           |
+|  - Inference Engine                            |
++------------------------------------------------+
+| Semantic Layer                                 |
+|  - Type System                                 |
+|  - Operational Semantics                       |
+|  - DSL IR                                      |
++------------------------------------------------+
+| Language Layer                                 |
+|  - Syntax                                      |
+|  - Grammar                                     |
+|  - DSL Specification                           |
++------------------------------------------------+
+| Infrastructure Layer                           |
+|  - Storage                                     |
+|  - Compute                                     |
+|  - Tooling                                     |
++------------------------------------------------+
+```
+
+---
+
+## IEEE Mapping
+
+| IEEE concept  | Bridge DSL              |
+| ------------- | ----------------------- |
+| Environment   | Bridge reasoning system |
+| Entities      | DSL components          |
+| Relationships | data flow / execution   |
+| Architecture  | layered pipeline        |
+
+---
+
+---
+
+# ⭐ 5️⃣ Component Model（IEEE 42020 style）
+
+---
+
+## 📊 Component Diagram
+
+```
+Bridge DSL Engine
+ ├─ Parser
+ ├─ Type Checker
+ ├─ Semantic Translator
+ ├─ Execution Engine
+ │    ├─ Interpreter
+ │    ├─ State Manager
+ │    └─ Event Processor
+ ├─ Reasoning Engine
+ │    ├─ Bayesian Module
+ │    ├─ Constraint Module
+ │    └─ Strategy Module
+ └─ API Interface
+```
+
+---
+
+## Component Responsibilities
+
+| Component        | Responsibility          |
+| ---------------- | ----------------------- |
+| Parser           | syntax processing       |
+| Type Checker     | static correctness      |
+| IR Generator     | semantic mapping        |
+| Execution Engine | state transitions       |
+| Reasoning Engine | probabilistic inference |
+| API              | integration             |
+
+---
+
+---
+
+# ⭐ 6️⃣ Data Flow Model（IEEE reference model 必備）
+
+---
+
+## 📊 Data Flow
+
+```
+DSL Script
+   ↓
+AST
+   ↓
+Semantic IR
+   ↓
+Execution State
+   ↓
+Belief Update / Constraints
+   ↓
+Inference Result
+```
+
+---
+
+## Execution State
+
+```
+⟨P, σ, B, C⟩
+```
+
+---
+
+---
+
+# ⭐ 7️⃣ Interaction Model
+
+---
+
+## 📊 Component Interaction
+
+```
+Parser → TypeChecker → IR
+IR → Execution Engine
+Execution → Reasoning Engine
+Reasoning → State Update
+State → Output
+```
+
+---
+
+---
+
+# ⭐ 8️⃣ Deployment View（IEEE style）
+
+---
+
+## 📊 Runtime Deployment
+
+```
+Client / IDE
+    |
+DSL Runtime Service
+    |
++--------------------------+
+| DSL Engine               |
+| Reasoning Engine         |
+| Storage                  |
++--------------------------+
+```
+
+---
+
+---
+
+# ⭐ 9️⃣ Quality Attribute Model（IEEE reference architecture 要）
+
+---
+
+## Quality Goals
+
+| Attribute      | Goal                |
+| -------------- | ------------------- |
+| Correctness    | type soundness      |
+| Consistency    | constraint validity |
+| Explainability | inference trace     |
+| Scalability    | large belief space  |
+| Extensibility  | new conventions     |
+
+---
+
+---
+
+# ⭐ 10️⃣ Bridge DSL Architecture Constraints
+
+IEEE reference architecture通常定義 constraints：
+
+```
+- probabilistic reasoning support
+- constraint consistency
+- type safety
+- deterministic execution semantics
+```
+
+---
+
+---
+
+# ⭐ 11️⃣ Architecture Views（IEEE 42010 style）
+
+IEEE architecture description要求多 view：
+
+---
+
+## Logical View
+
+* DSL components
+* reasoning modules
+
+## Process View
+
+* inference pipeline
+
+## Development View
+
+* DSL compiler structure
+
+## Physical View
+
+* runtime deployment
+
+---
+
+---
+
+# ⭐ 12️⃣ IEEE-style Architecture Specification Template
+
+（可直接放論文）
+
+---
+
+## Bridge DSL Reference Architecture Specification
+
+```
+Name: Bridge DSL Architecture
+Scope: Probabilistic bidding reasoning systems
+Domain: Imperfect-information cooperative games
+
+Entities:
+  Language Processor
+  Semantic Engine
+  Reasoning Engine
+  Execution Engine
+
+Relations:
+  data flow
+  state transition
+  inference dependency
+```
+
+---
+
+---
+
+# ⭐ 13️⃣ Bridge DSL Architecture vs Traditional Compiler
+
+| Traditional PL | Bridge DSL         |
+| -------------- | ------------------ |
+| AST            | AST                |
+| IR             | Semantic IR        |
+| VM             | Execution Engine   |
+| Runtime        | Bayesian Reasoning |
+| Type checker   | Domain type system |
+
+---
+
+👉 reviewer 很喜歡這種 comparison。
+
+下面是你要的：
+
+# ⭐ **Bridge DSL Architecture vs Traditional Compiler（IEEE / PL paper 等級比較）**
+
+這份內容是：
+
+✅ IEEE paper style comparison section
+✅ DSL research / PL conference 常用 positioning
+✅ 可直接放論文 Related Work / Architecture section
+✅ 有架構圖 + comparison table + analysis
+
+我會給：
+
+* architecture comparison model
+* pipeline comparison
+* component comparison
+* design philosophy difference
+* Bridge DSL 特有差異（Bayesian reasoning / inference / constraints）
+
+---
+
+# 🧠 1️⃣ Core Concept Difference（最本質差異）
+
+## Traditional Compiler
+
+目標：
+
+```
+Program → Machine Code
+```
+
+* 通用計算
+* 低階執行效率
+* 語義與 domain 無關
+
+---
+
+## Bridge DSL Architecture
+
+目標：
+
+```
+Domain Specification → Reasoning + Inference + Strategy
+```
+
+* domain semantics first
+* probabilistic reasoning
+* constraint inference
+* communication model
+
+---
+
+## 根本差異
+
+| Dimension | Traditional Compiler  | Bridge DSL               |
+| --------- | --------------------- | ------------------------ |
+| Goal      | program execution     | domain reasoning         |
+| Output    | machine code          | inference result         |
+| Semantics | computation           | communication            |
+| Model     | deterministic         | probabilistic            |
+| Execution | instruction execution | state + belief evolution |
+
+---
+
+👉 這是 paper novelty 的核心。
+
+---
+
+# ⭐ 2️⃣ Architecture Pipeline Comparison（最重要）
+
+---
+
+## 📊 Traditional Compiler Pipeline
+
+```
+Source Code
+   ↓
+Lexical Analysis
+   ↓
+Parsing
+   ↓
+Semantic Analysis
+   ↓
+Intermediate Representation
+   ↓
+Optimization
+   ↓
+Code Generation
+   ↓
+Machine Code
+```
+
+這是 compiler 標準架構（語法→IR→code）。 ([geaflow.incubator.apache.org][1])
+
+---
+
+## 📊 Bridge DSL Execution Pipeline
+
+```
+Bridge DSL Script
+   ↓
+Parser
+   ↓
+Type System / Static Analysis
+   ↓
+Semantic IR
+   ↓
+Execution Engine
+   ├─ Bayesian Reasoning
+   ├─ Constraint Solver
+   ├─ Strategy Engine
+   ↓
+Inference Result
+```
+
+---
+
+## Pipeline 差異
+
+| Stage        | Traditional | Bridge DSL            |
+| ------------ | ----------- | --------------------- |
+| IR           | program IR  | semantic state IR     |
+| Runtime      | VM / CPU    | reasoning engine      |
+| Output       | executable  | knowledge / belief    |
+| Optimization | performance | inference correctness |
+
+---
+
+---
+
+# ⭐ 3️⃣ Component Architecture Comparison
+
+---
+
+## 📊 Traditional Compiler Components
+
+```
+Frontend
+  ├─ Lexer
+  ├─ Parser
+  └─ Semantic Analyzer
+
+Middle End
+  ├─ IR
+  └─ Optimization
+
+Backend
+  ├─ Code Generator
+  └─ Target Architecture
+```
+
+---
+
+## 📊 Bridge DSL Architecture Components
+
+```
+Language Layer
+  ├─ Grammar
+  ├─ Type System
+
+Semantic Layer
+  ├─ Operational Semantics
+  └─ Constraint Model
+
+Reasoning Layer
+  ├─ Bayesian Engine
+  ├─ Inference Engine
+  └─ Strategy Engine
+
+Execution Layer
+  └─ State Transition Engine
+```
+
+---
+
+## Component Difference
+
+| Component    | Traditional       | Bridge DSL         |
+| ------------ | ----------------- | ------------------ |
+| Backend      | code generation   | inference engine   |
+| Runtime      | machine execution | belief evolution   |
+| Optimization | speed             | knowledge accuracy |
+| Domain model | none              | core architecture  |
+
+---
+
+---
+
+# ⭐ 4️⃣ Execution Model Comparison
+
+---
+
+## Traditional Compiler
+
+Execution model：
+
+```
+instructions → CPU → result
+```
+
+特性：
+
+* deterministic
+* stateless execution
+* no belief state
+
+---
+
+## Bridge DSL Execution Model
+
+```
+state → signal → belief update → constraint update
+```
+
+特性：
+
+* stateful
+* probabilistic
+* communication-driven
+
+---
+
+## Execution Difference
+
+| Feature     | Traditional           | Bridge DSL                  |
+| ----------- | --------------------- | --------------------------- |
+| State       | memory only           | auction + belief            |
+| Update      | instruction execution | Bayesian update             |
+| Semantics   | operational           | operational + probabilistic |
+| Computation | algorithmic           | epistemic                   |
+
+---
+
+👉 Bridge DSL = epistemic computation system。
+
+---
+
+---
+
+# ⭐ 5️⃣ Intermediate Representation Comparison
+
+---
+
+## Traditional IR
+
+* control flow graph
+* SSA form
+* low-level operations
+
+---
+
+## Bridge DSL IR
+
+```
+⟨P, σ, B, C⟩
+```
+
+* auction state
+* belief distribution
+* constraint set
+
+---
+
+## IR Difference
+
+| IR Property      | Traditional  | Bridge DSL      |
+| ---------------- | ------------ | --------------- |
+| Representation   | instructions | knowledge state |
+| Domain semantics | none         | first-class     |
+| Probabilities    | no           | yes             |
+
+---
+
+---
+
+# ⭐ 6️⃣ Optimization Goal Comparison
+
+---
+
+## Traditional Compiler
+
+```
+minimize runtime
+minimize memory
+```
+
+---
+
+## Bridge DSL
+
+```
+maximize inference accuracy
+maintain belief consistency
+constraint validity
+```
+
+---
+
+---
+
+# ⭐ 7️⃣ Theoretical Foundation Comparison
+
+---
+
+## Traditional Compiler
+
+* lambda calculus
+* operational semantics
+* type theory
+
+---
+
+## Bridge DSL
+
+* operational semantics
+* Bayesian inference
+* game theory
+* signaling theory
+
+---
+
+## Theory Stack
+
+| Theory                | Traditional | Bridge DSL |
+| --------------------- | ----------- | ---------- |
+| Type theory           | ✓           | ✓          |
+| Operational semantics | ✓           | ✓          |
+| Probability           | ✗           | ✓          |
+| Game theory           | ✗           | ✓          |
+
+---
+
+---
+
+# ⭐ 8️⃣ IEEE-Style Architecture Diagram（論文可用）
+
+---
+
+## 📊 Architecture Comparison Diagram
+
+```
+Traditional Compiler              Bridge DSL Architecture
+
+Source Program                    Domain Specification
+     |                                  |
+     v                                  v
+Frontend                           DSL Processor
+     |                                  |
+IR + Optimization                 Semantic IR
+     |                                  |
+Code Generator                    Reasoning Engine
+     |                                  |
+Machine Execution                 Belief / Strategy Result
+```
+
+---
+
+---
+
+# ⭐ 9️⃣ Design Philosophy Difference（論文可寫）
+
+---
+
+## Traditional Compiler Philosophy
+
+```
+program = algorithm
+```
+
+---
+
+## Bridge DSL Philosophy
+
+```
+program = knowledge + communication
+```
+
+---
+
+## Interpretation Difference
+
+* traditional → compute result
+* Bridge DSL → infer knowledge
+
+---
+
+---
+
+# ⭐ 10️⃣ Research Positioning（paper reviewer 會看）
+
+Bridge DSL 屬於：
+
+```
+knowledge compilation system
+probabilistic DSL
+communication semantics engine
+```
+
+而非：
+
+```
+program compiler
+```
+
+---
+
+---
+
+# ⭐ 11️⃣ Novelty Claim（可直接放 paper）
+
+你可以直接寫：
+
+> Unlike traditional compiler architectures that translate programs into executable code, Bridge DSL compiles domain specifications into probabilistic reasoning processes and belief updates.
+
+---
+
+---
+
+# ⭐ 12️⃣ Bridge DSL = 下一代 DSL 架構（強論文定位）
+
+Bridge DSL architecture combines：
+
+```
+compiler architecture
++
+AI reasoning system
++
+game communication model
+```
+
+目前研究幾乎沒有。
+
+---
+
+---
+
+# 🚀 如果你要下一步（強烈推薦）
+
+我可以幫你直接生成：
+
+✅ Bridge DSL vs Prolog / rule engine comparison
+✅ Bridge DSL vs probabilistic programming language comparison
+✅ DSL vs knowledge representation systems comparison
+✅ DSL architecture taxonomy paper section
+✅ novelty positioning vs prior work（reviewer killer）
+✅ PLDI/OOPSLA style architecture section
+
+直接說 👍
+
+[1]: https://geaflow.incubator.apache.org/docs/concepts/dsl_principle/?utm_source=chatgpt.com "DSL Principle Introduction | GeaFlow"
+
+
+---
+
+---
+
+# ⭐ 14️⃣ Research Novelty（IEEE positioning）
+
+Bridge DSL reference architecture：
+
+```
+compiler + probabilistic reasoning + game communication
+```
+
+目前 literature 幾乎沒有。
+
+---
+
+---
+
+# ⭐ 如果你要下一步（非常推薦）
+
+我可以幫你直接產生：
+
+✅ IEEE architecture diagram（UML / SysML）
+✅ ISO/IEC/IEEE 42010 compliant architecture document
+✅ Bridge DSL architecture standard proposal draft
+✅ architecture decision records (ADR)
+✅ C4 model version
+✅ component interface specification (IDL)
+✅ microservice deployment architecture
+
+直接說要哪個 👍
+
+[1]: https://en.wikipedia.org/wiki/Reference_model?utm_source=chatgpt.com "Reference model"
+[2]: https://en.wikipedia.org/wiki/Reference_architecture?utm_source=chatgpt.com "Reference architecture"
+
+
 
 ---
 
 ✅ Bridge DSL research paper outline
+
+下面是 **Bridge DSL research paper outline（研究論文大綱）** —
+這是依據：
+
+* DSL research paper 標準結構
+* programming language / formal methods paper structure
+* DSL semantics + implementation paper structure
+  （syntax → semantics → execution → evaluation → discussion）([MDPI][1])
+
+我會給你：
+
+✅ IEEE / ACM 可投稿結構
+✅ PL / DSL conference style
+✅ Bridge DSL 專用章節設計
+✅ 每章內容與研究目標
+✅ reviewer 期待內容
+✅ 3 種投稿版本（PL / AI / SE）
+
+---
+
+# ⭐ Bridge DSL Research Paper Outline（IEEE / ACM Style）
+
+---
+
+# 📄 0. Title Page
+
+* Title
+* Authors
+* Affiliations
+* Keywords
+* Abstract
+
+---
+
+# ⭐ 1. Abstract（150–250 words）
+
+### 內容
+
+* problem
+* approach
+* method
+* results
+* contribution
+
+### Bridge DSL focus
+
+```
+DSL + Bayesian reasoning + communication semantics
+```
+
+---
+
+# ⭐ 2. Introduction（1–1.5 pages）
+
+---
+
+## 2.1 Problem Statement
+
+* bridge bidding = imperfect information communication
+* lack of formal specification
+* rule-based systems 不可驗證
+
+---
+
+## 2.2 Research Gap
+
+目前沒有：
+
+```
+formal DSL for bridge communication
+probabilistic semantics DSL
+communication DSL with type safety
+```
+
+---
+
+## 2.3 Contributions（bullet list）
+
+典型 reviewer checklist：
+
+```
+• DSL language design
+• formal semantics
+• type system
+• inference calculus
+• execution architecture
+```
+
+---
+
+## 2.4 Paper Organization
+
+標準 DSL paper 必有。
+
+---
+
+---
+
+# ⭐ 3. Background and Motivation（1 page）
+
+---
+
+## 3.1 Domain-Specific Languages
+
+* DSL definition
+* DSL design challenges
+* DSL implementation patterns ([ScienceDirect][2])
+
+---
+
+## 3.2 Bridge Bidding as Signaling Game
+
+* incomplete information
+* cooperative communication
+* belief reasoning
+
+---
+
+## 3.3 Probabilistic Reasoning / Game Communication
+
+Bridge DSL positioning。
+
+---
+
+---
+
+# ⭐ 4. Bridge DSL Overview（Design Section）
+
+（paper 核心）
+
+---
+
+## 4.1 Design Goals
+
+* expressiveness
+* safety
+* inference capability
+* explainability
+
+---
+
+## 4.2 Core Concepts
+
+```
+AuctionState
+BeliefState
+Constraint
+Signal
+Strategy
+```
+
+---
+
+## 4.3 Running Example（強烈建議）
+
+* sample DSL program
+* bidding example
+
+（reviewer 最喜歡）
+
+---
+
+## 4.4 System Architecture Overview
+
+* execution pipeline
+
+---
+
+---
+
+# ⭐ 5. Syntax and Metamodel
+
+---
+
+## 5.1 Grammar
+
+* BNF / EBNF
+
+---
+
+## 5.2 Abstract Syntax Tree
+
+* AST structure
+
+---
+
+## 5.3 Metamodel
+
+* domain entities
+* relationships
+
+---
+
+DSL research通常定義語法與抽象表示分離 ([ScienceDirect][3])。
+
+---
+
+---
+
+# ⭐ 6. Formal Semantics（最重要）
+
+---
+
+## 6.1 Operational Semantics
+
+```
+state transition
+```
+
+---
+
+## 6.2 Denotational Semantics（可選）
+
+---
+
+## 6.3 State Model
+
+```
+⟨P, σ, B, C⟩
+```
+
+---
+
+## 6.4 Execution Rules
+
+* bid
+* belief update
+* constraint inference
+
+---
+
+👉 PL reviewer 主要看這章。
+
+---
+
+---
+
+# ⭐ 7. Inference Rule Calculus
+
+---
+
+## 7.1 Judgment Forms
+
+```
+Γ ⊢ e : τ
+Γ ⊢ σ valid
+```
+
+---
+
+## 7.2 Derivation Rules
+
+* bidding legality
+* belief update
+* constraint propagation
+
+---
+
+## 7.3 Proof Properties
+
+* soundness sketch
+* consistency
+
+---
+
+---
+
+# ⭐ 8. Type System
+
+---
+
+## 8.1 Type Hierarchy
+
+---
+
+## 8.2 Typing Rules
+
+---
+
+## 8.3 Soundness Theorem
+
+* progress
+* preservation
+
+---
+
+（PL conference 必須）
+
+---
+
+---
+
+# ⭐ 9. Bayesian Reasoning Model（Bridge DSL novelty）
+
+---
+
+## 9.1 Belief Representation
+
+---
+
+## 9.2 Bayesian Update
+
+---
+
+## 9.3 Likelihood Model
+
+---
+
+## 9.4 Strategy Evaluation
+
+---
+
+---
+
+# ⭐ 10. Execution Architecture
+
+---
+
+## 10.1 DSL Pipeline
+
+```
+Parser → IR → Engine
+```
+
+---
+
+## 10.2 Runtime Model
+
+---
+
+## 10.3 Component Design
+
+* interpreter
+* reasoning engine
+* constraint solver
+
+---
+
+---
+
+# ⭐ 11. Implementation
+
+---
+
+## 11.1 Prototype System
+
+---
+
+## 11.2 Tooling
+
+---
+
+## 11.3 Performance
+
+---
+
+---
+
+# ⭐ 12. Evaluation（非常重要）
+
+---
+
+## 12.1 Case Study
+
+* bidding convention encoding
+
+---
+
+## 12.2 Experiments
+
+* belief accuracy
+* constraint correctness
+* runtime
+
+---
+
+## 12.3 Comparison（最好有）
+
+* rule engines
+* bridge AI systems
+
+---
+
+DSL papers通常包含 evaluation methodology ([MDPI][1])。
+
+---
+
+---
+
+# ⭐ 13. Related Work
+
+---
+
+## DSL research
+
+## probabilistic modeling languages
+
+## game theory
+
+## AI reasoning
+
+---
+
+---
+
+# ⭐ 14. Discussion
+
+* advantages
+* limitations
+* complexity
+
+---
+
+---
+
+# ⭐ 15. Future Work
+
+* card play DSL
+* learning integration
+* equilibrium semantics
+
+---
+
+---
+
+# ⭐ 16. Conclusion
+
+* summary
+* impact
+
+---
+
+---
+
+# ⭐ 17. Appendix（PL paper常見）
+
+---
+
+## A. Soundness Proof
+
+## B. Additional Rules
+
+---
+
+---
+
+# ⭐ DSL Paper 典型頁數配置（10–14頁）
+
+| Section        | Pages |
+| -------------- | ----- |
+| Intro          | 1.5   |
+| Background     | 1     |
+| DSL Design     | 1.5   |
+| Semantics      | 2     |
+| Type System    | 1.5   |
+| Inference      | 1     |
+| Architecture   | 1     |
+| Implementation | 1     |
+| Evaluation     | 2     |
+| Related Work   | 1     |
+
+---
+
+---
+
+# ⭐ 三種投稿版本（強烈重要）
+
+---
+
+## 🧠 PL Conference Version（PLDI/OOPSLA）
+
+```
+Semantics + Type System + Proof heavy
+```
+
+---
+
+## 🤖 AI Conference Version（AAAI/IJCAI）
+
+```
+Bayesian reasoning + strategy + experiments
+```
+
+---
+
+## 💻 Software Engineering Version
+
+```
+DSL design + architecture + implementation
+```
+
+---
+
+---
+
+# ⭐ Reviewer 最在意（Bridge DSL 必做）
+
+```
+formal semantics
+type soundness
+clear novelty claim
+running example
+evaluation
+```
+
+---
+
+---
+
+# 如果你要，我可以直接幫你下一步升級：
+
+✅ Bridge DSL paper section-by-section writing plan
+✅ novelty claim vs prior work section
+✅ reviewer expectation checklist
+✅ PLDI submission version outline
+✅ AAAI submission version outline
+✅ 14頁 paper writing roadmap（每頁寫什麼）
+
+直接說 👍
+
+[1]: https://www.mdpi.com/1424-8220/25/21/6720?utm_source=chatgpt.com "Defining a Domain-Specific Language for Behavior Verification of Cyber–Physical Applications"
+[2]: https://www.sciencedirect.com/science/article/abs/pii/S0164121200000893?utm_source=chatgpt.com "Notable design patterns for domain-specific languages - ScienceDirect"
+[3]: https://www.sciencedirect.com/science/article/abs/pii/S1477842415300208?utm_source=chatgpt.com "Language components for modular DSLs using traits - ScienceDirect"
+
+
 ✅ BBDSL research contribution positioning
+
+
+
+
 ✅ Bridge DSL taxonomy map
 ✅ DSL design tradeoff matrix

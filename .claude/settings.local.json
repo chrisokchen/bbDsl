@@ -4,7 +4,8 @@
       "Bash(mkdir:*)",
       "Bash(uv sync:*)",
       "Bash(uv run:*)",
-      "Bash(do echo:*)"
+      "Bash(do echo:*)",
+      "Bash(python:*)"
     ]
   }
 }
