@@ -21,6 +21,10 @@ class ValidationResult(BaseModel):
     message: str
     details: list[dict[str, Any]] = []
 
+    def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-serializable dict."""
+        return self.model_dump()
+
 
 class ValidationReport(BaseModel):
     """Complete validation report."""
@@ -38,6 +42,19 @@ class ValidationReport(BaseModel):
 
     def has_errors(self) -> bool:
         return self.error_count > 0
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a fully JSON-serializable dict.
+
+        Includes computed properties ``error_count`` and
+        ``warning_count`` for convenience.
+        """
+        return {
+            "document_name": self.document_name,
+            "results": [r.to_dict() for r in self.results],
+            "error_count": self.error_count,
+            "warning_count": self.warning_count,
+        }
 
 
 class Validator:

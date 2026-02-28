@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 import json
 from pathlib import Path
 
@@ -21,13 +22,52 @@ def load_yaml(path: str | Path) -> dict:
         data = yaml.load(f)
 
     if not isinstance(data, dict):
-        raise ValueError(f"Expected YAML mapping at top level, got {type(data).__name__}")
+        raise ValueError(
+            f"Expected YAML mapping at top level, got {type(data).__name__}"
+        )
+    return data
+
+
+def load_yaml_from_string(content: str) -> dict:
+    """Parse a YAML string and return raw dict.
+
+    Args:
+        content: YAML text content.
+
+    Returns:
+        Parsed dict.
+
+    Raises:
+        ValueError: If the content is not a YAML mapping.
+    """
+    yaml = YAML(typ="safe")
+    data = yaml.load(io.StringIO(content))
+    if not isinstance(data, dict):
+        raise ValueError(
+            f"Expected YAML mapping at top level, got {type(data).__name__}"
+        )
     return data
 
 
 def load_document(path: str | Path) -> BBDSLDocument:
     """Load a BBDSL YAML file into a validated BBDSLDocument."""
     data = load_yaml(path)
+    return BBDSLDocument.model_validate(data)
+
+
+def load_document_from_string(content: str) -> BBDSLDocument:
+    """Load a BBDSL YAML string into a validated BBDSLDocument.
+
+    This is useful for platform/API usage where YAML content
+    is received as a string rather than a file path.
+
+    Args:
+        content: YAML text content of a BBDSL document.
+
+    Returns:
+        Validated BBDSLDocument instance.
+    """
+    data = load_yaml_from_string(content)
     return BBDSLDocument.model_validate(data)
 
 
