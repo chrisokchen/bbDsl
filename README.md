@@ -105,7 +105,7 @@ $$ \mathcal{U}(b) = EV_{base}(b) + \alpha \cdot VoI(b, Partner) - \beta \cdot Vo
 
 我們將這個宏大的願景分為四個開源開發階段：
 
-*   [ ] **Phase 1: 基礎建設 (The Foundation)**
+*   [X] **Phase 1: 基礎建設 (The Foundation)**
     *   完成 BBDSL YAML 規格的 JSON Schema 驗證器。
     *   開發 Python 版本的 BBDSL Parser。
 *   [ ] **Phase 2: 貝氏推演 POC (The Bayesian Brain)**
@@ -132,3 +132,82 @@ $$ \mathcal{U}(b) = EV_{base}(b) + \alpha \cdot VoI(b, Partner) - \beta \cdot Vo
 
 ---
 *License: MIT License*
+
+---
+
+## 7. BBDSL 實作進度（Implementation Status）
+
+> 本節記錄 `bbdsl/` Python 套件的實際開發進度，對應 `BBDSL_IMPLEMENTATION-PLAN.md` 的 5 Phase 路線圖。
+
+### 整體架構
+
+```
+Phase 1          Phase 2          Phase 3          Phase 4          Phase 5
+Schema+MVP       實戰價值          視覺化+教學       AI 整合           社群平台
+(完成)            (完成)            (完成)            (完成)            (待開發)
+```
+
+**當前狀態**：Phase 4.3 全數完成 ✅　|　851 個測試通過　|　82% 覆蓋率
+
+---
+
+### Phase 1 — 基礎建設（✅ 完成）
+
+| Sprint | 交付物 | 狀態 |
+|--------|--------|------|
+| 1.1 | Pydantic v2 模型（`models/`）、YAML Loader、精準制範例 | ✅ |
+| 1.2 | `foreach_suit` 展開器、14 條語義驗證規則（`val-001`～`val-014`） | ✅ |
+| 1.3 | BML 匯入器（`bbdsl import bml`）、`UnresolvedNode` 機制 | ✅ |
+
+### Phase 2 — 實戰價值（✅ 完成）
+
+| Sprint | 交付物 | 狀態 |
+|--------|--------|------|
+| 2.1 | BBOalert 匯出器 + 匯入器 | ✅ |
+| 2.2 | BML 匯出器、Selection Rules 引擎（`bbdsl select`）、`val-013/014` | ✅ |
+| 2.3 | SAYC + 2/1 GF 範例制度、`val-001/003/009/010` 完整實作 | ✅ |
+
+### Phase 3 — 視覺化與教學（✅ 完成）
+
+| Sprint | 交付物 | 狀態 |
+|--------|--------|------|
+| 3.1 | 互動式 HTML Viewer（`bbdsl export html`） | ✅ |
+| 3.2 | Convention Card（`bbdsl export convcard`）、SVG 叫牌樹（`bbdsl export svg`） | ✅ |
+| 3.3 | 手牌產生器、練習題產生器（`bbdsl quiz`）、互動式 HTML Quiz | ✅ |
+
+### Phase 4 — AI 整合（✅ 完成）
+
+| Sprint | 交付物 | 狀態 |
+|--------|--------|------|
+| 4.1 | AI 知識庫匯出（`bbdsl export ai-kb`）、Dealer script 雙向橋接（`bbdsl export dealer`） | ✅ |
+| 4.2 | 模擬對練引擎（`bbdsl simulate`）：52 張隨機發牌 + 完整叫牌拍賣模擬 | ✅ |
+| 4.3 | 制度比較器（`bbdsl compare`）、PBN 牌譜匯出（`bbdsl export pbn`） | ✅ |
+
+### Phase 5 — 社群平台（🔲 待開發）
+
+Phase 5（線上 Registry、Web 編輯器、Diff/Merge、LIN 整合）將以獨立 repo 形式開發，以本套件作為核心依賴。
+
+---
+
+### 快速開始
+
+```bash
+# 安裝（使用 uv）
+pip install uv
+uv sync
+
+# 驗證精準制制度（應通過全部 14 條規則）
+uv run bbdsl validate examples/precision.bbdsl.yaml
+
+# 模擬 10 副叫牌（精準制）
+uv run bbdsl simulate examples/precision.bbdsl.yaml --deals 10 --seed 42
+
+# 比較精準制 vs SAYC（50 副，輸出 JSON 報告）
+uv run bbdsl compare examples/precision.bbdsl.yaml examples/sayc.bbdsl.yaml \
+    --deals 50 --seed 42 -o report.json
+
+# 匯出 PBN 牌譜
+uv run bbdsl export pbn examples/precision.bbdsl.yaml --deals 5 --seed 42 -o out.pbn
+```
+
+完整 CLI 說明請參閱 [`CLAUDE.md`](./CLAUDE.md) 或執行 `uv run bbdsl --help`。

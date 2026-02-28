@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **BBDSL** (Bridge Bidding Description Specification Language) is a domain-specific language for describing bridge bidding systems in structured, machine-readable YAML. It bridges the semantic gap between existing formats (BML, BBOalert, Dealer, PBN) by providing verifiable logic, AI-readable semantics, and ecosystem interoperability.
 
-**Current status**: Phase 1 complete (Sprint 1.1 + 1.2 + 1.3). Python package with CLI, models, loader, expander, validator, and BML importer are all implemented and tested (141 tests, 82% coverage).
+**Current status**: Phase 4.3 complete. 851 tests, 82% coverage. All sprints 1.1–4.3 implemented.
 
 ## Canonical References
 
@@ -15,95 +15,136 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **BBDSL_IMPLEMENTATION-PLAN.md** — 5-phase / 32-week roadmap with sprint breakdowns and Pydantic model examples
 - **bbdsl-schema-v0.3.json** — JSON Schema (draft-07) for external validation
 
-## Planned Tech Stack (Phase 1)
+## Tech Stack
 
-Python 3.11+, Pydantic v2 (strict mode), ruamel.yaml, jsonschema, Click (CLI), Jinja2 (templates), pytest + hypothesis (testing), mkdocs-material (docs). Package management via **uv** (`pyproject.toml` + `uv.lock`).
+Python 3.11+, Pydantic v2 (strict mode), ruamel.yaml, jsonschema, Click (CLI), Jinja2 (templates), pytest (testing). Package management via **uv** (`pyproject.toml` + `uv.lock`).
 
-### Commands
+### Test & Lint Commands
 
 ```bash
-uv run pytest tests/                             # All tests
-uv run pytest tests/test_core/test_validator.py  # Single test file
-uv run ruff check bbdsl/ tests/                  # Lint
-uv run ruff format bbdsl/ tests/                 # Format
+uv run pytest tests/                                        # All tests
+uv run pytest tests/test_core/test_validator.py            # Single test file
+uv run pytest tests/test_core/test_validator.py::TestVal002NoOverlap -v  # Single class
+uv run ruff check bbdsl/ tests/                            # Lint
+uv run ruff format bbdsl/ tests/                           # Format
 ```
 
 ### CLI (all implemented)
 
 ```bash
-uv run bbdsl load <file>.bbdsl.yaml              # Load and print summary
-uv run bbdsl expand <file>.bbdsl.yaml            # Expand foreach_suit
-uv run bbdsl validate <file>.bbdsl.yaml          # Run 10 validation rules
-uv run bbdsl validate <file>.yaml --rules val-002,val-008  # Specific rules
-uv run bbdsl import bml <file>.bml               # Import BML → BBDSL YAML
-uv run bbdsl import bml <file>.bml -n "Name" -o out.yaml  # With options
-uv run bbdsl schema                              # Generate JSON Schema
+# Core
+uv run bbdsl load <file>.bbdsl.yaml
+uv run bbdsl expand <file>.bbdsl.yaml [-o out.json]
+uv run bbdsl validate <file>.bbdsl.yaml [--rules val-002,val-008] [-o report.json]
+uv run bbdsl schema
+
+# Import
+uv run bbdsl import bml <file>.bml [-n "Name"] [-o out.yaml]
+uv run bbdsl import bboalert <file>.bboalert [-n "Name"] [-o out.yaml]
+
+# Export
+uv run bbdsl export bml <path> [-o out.bml] [--locale zh-TW] [--suit-symbols]
+uv run bbdsl export bboalert <path> [-o out.bboalert] [--locale zh-TW]
+uv run bbdsl export html <path> [-o out.html] [--locale zh-TW] [--suit-symbols] [--title "Title"]
+uv run bbdsl export convcard <path> [-o out.html] [--style wbf|acbl] [--locale zh-TW]
+uv run bbdsl export svg <path> [-o out.svg] [--max-depth 2] [--suit-symbols]
+uv run bbdsl export ai-kb <path> [-o out.jsonl] [--format json|jsonl] [--locale zh-TW]
+uv run bbdsl export dealer <path> [-o out.dds] [--seat south] [--locale zh-TW]
+uv run bbdsl export pbn <path> [-o out.pbn] [--deals 10] [--seed 42] [--dealer N]
+
+# Simulation & Comparison
+uv run bbdsl simulate <path> [-n 5] [--seed 42] [--dealer N] [-o out.json]
+uv run bbdsl compare <path_a> <path_b> [-n 50] [--seed 42] [-o report.json] [--locale zh-TW]
+uv run bbdsl select <path> --hcp 18 [--hearts 5] [--shape balanced]
+uv run bbdsl quiz <path> [-o out.html] [--locale zh-TW] [-n 20] [--seed N]
 ```
 
-Exit codes: `validate` and `import bml` return 0=pass, 1=warnings, 2=errors.
+Exit codes: `validate` and `import` commands return 0=pass, 1=warnings, 2=errors.
 
 ## Architecture
 
 ```
-Declarative YAML → Pydantic Models → Validation → Export (BBOalert/BML/PBN/AI KB)
+Declarative YAML → Pydantic Models → Validation → Simulation → Export
 ```
 
 Key architectural patterns:
 
-1. **Modular Conventions**: Independent `.bbdsl-conv.yaml` files with namespace IDs (`bbdsl/stayman-v1`, `chris/precision-relay-v2`). Conventions declare parameters, conflicts, and dependencies.
+1. **Modular Conventions**: Independent `.bbdsl-conv.yaml` files with namespace IDs (`bbdsl/stayman-v1`). Conventions declare parameters, conflicts, and dependencies.
 
-2. **foreach_suit Expansion**: Write-time macro that expands suit templates. Variables: `${M}`, `${M.lower}`, `${M.zh-TW}`, `${M.symbol}`, `${M.rank}`, `${M.other}`, `${M.transfer_from}`. Max 2-level nesting.
+2. **foreach_suit Expansion**: Write-time macro expanding suit templates. Variables: `${M}`, `${M.lower}`, `${M.zh-TW}`, `${M.symbol}`, `${M.rank}`, `${M.other}`, `${M.transfer_from}`. Max 2-level nesting.
 
 3. **Context Overrides**: Base system + seat/vulnerability-specific overrides. Opponent action patterns use 9 syntax forms (concrete bids, ranges, types, logical combinations).
 
-4. **Selection Rules Engine** (Phase 2+): Priority-based bid selection with Dealer-compatible expression conditions. Ordered evaluation, first match wins.
+4. **Selection Rules Engine**: Priority-based bid selection with Dealer-compatible expression conditions. Ordered evaluation, first match wins (`bbdsl/core/selector.py`).
 
-5. **14 Validation Rules**: From HCP coverage gaps (val-001) through convention ID format (val-011) to selection rule exhaustiveness (val-014). Each rule has type (error/warning) and scope.
+5. **14 Validation Rules**: HCP coverage gaps (val-001), bid overlap (val-002), through convention ID format (val-011), selection rule exhaustiveness (val-014). Each has type (error/warning) and scope.
 
-### Package Structure (Phase 1 implemented)
+6. **Simulation Engine**: Two-phase random deal generation (rejection sampling from 52-card deck). Auction tree navigation by `ns_path` (N/S non-Pass bids): even depth → responses, odd depth → continuations.
+
+### Package Structure
 
 ```
 bbdsl/
-├── models/       # Pydantic v2 models: common, bid, convention, context, system
-├── core/         # loader.py, expander.py, validator.py
-├── importers/    # bml_importer.py (BML → BBDSL, with UnresolvedNode for failures)
-├── exporters/    # (Phase 2+)
-├── viewer/       # (Phase 3+)
-├── ai/           # (Phase 4+)
-└── cli/main.py   # Click CLI: load, expand, validate, import bml, schema
+├── models/         # Pydantic v2: common.py, bid.py, convention.py, context.py, system.py
+├── core/
+│   ├── loader.py          # load_document() → BBDSLDocument
+│   ├── expander.py        # expand_document(), foreach_suit, SUIT_META
+│   ├── validator.py       # Validator, ValidationResult/Report (14 rules)
+│   ├── selector.py        # evaluate_condition(), select_opening()
+│   ├── hand_generator.py  # BridgeHand, generate_hand(), two-phase rejection sampling
+│   ├── quiz_generator.py  # QuizQuestion, generate_quiz()
+│   ├── sim_engine.py      # Deal, AuctionStep, SimulationResult, generate_deal(), simulate()
+│   ├── comparator.py      # DiffCase, ComparisonReport, compare_systems()
+│   └── dealer_bridge.py   # constraint_to_dealer(), openings_to_dealer_script()
+├── exporters/
+│   ├── bml_exporter.py        # export_bml() → indented BML
+│   ├── bboalert_exporter.py   # export_bboalert() → CSV
+│   ├── html_exporter.py       # export_html() → interactive HTML viewer
+│   ├── convcard_exporter.py   # export_convcard() → printable convention card HTML
+│   ├── svg_tree.py            # export_svg() → SVG bidding tree
+│   ├── quiz_exporter.py       # export_quiz() → interactive HTML quiz
+│   ├── ai_kb_exporter.py      # export_ai_kb() → JSON/JSONL for RAG
+│   └── pbn_exporter.py        # export_pbn() → PBN牌譜（含[Note]嵌入BBDSL語義）
+├── importers/
+│   ├── bml_importer.py        # import_bml(), UnresolvedNode for parse failures
+│   └── bboalert_importer.py   # import_bboalert()
+└── cli/main.py    # Click CLI: all commands above
+examples/
+├── precision.bbdsl.yaml     # Precision Club (9 openings, all 14 rules pass)
+├── sayc.bbdsl.yaml          # SAYC (14 openings, all 14 rules pass)
+└── two_over_one.bbdsl.yaml  # 2/1 GF (9 openings, all 14 rules pass)
 ```
-
-Key modules:
-- `bbdsl/core/expander.py` — SUIT_META + foreach_suit recursive expansion
-- `bbdsl/core/validator.py` — 10 rules (8 real + 2 stubs); ValidationResult/Report
-- `bbdsl/importers/bml_importer.py` — parse_bml_text, extract_semantics, import_bml
 
 ## Coding Conventions
 
 - **Language**: Documentation in Traditional Chinese (繁體中文); code follows PEP 8
-- 4 spaces indentation, max 79 chars per line
-- Descriptive variable names (`total_price` not `tp`), CamelCase for classes
-- Imports ordered: standard → third-party → local, with blank lines between groups
-- f-strings for string formatting
+- 4 spaces indentation, max 79 chars per line; f-strings for formatting
 - Pydantic models with strict validation and type hints
 - i18n strings use `{ zh-TW: "...", en: "..." }` dicts
 - IDs use snake_case internally, `scope/name-vN` for convention namespaces
+- `Author` model: `{name: str, contact: str|None, role: str|None}` — not a plain string
 
-## Workflow Skills (`.claude/skills/`)
+## Key Implementation Notes
 
-- **es-kick-off-discovery**: Event Storming to clarify raw user ideas into structured specs
-- **formulation**: Transform ES output into feature files, API specs, and entity models
-- **new-requirement**: Handle incremental requirement changes across all spec artifacts
+- **Deal generation**: 52-card deck shuffled and split 4×13; each card appears exactly once
+- **Auction termination**: 3 consecutive Passes after a non-Pass bid, OR 4 initial Passes (passed out), OR max 40 steps
+- **PBN Note tag**: Only N/S non-Pass bids shown; format `"BBDSL: {system} | N:1C(16+ HCP) | S:1D(neg)"`
+- **val-002 overlap**: Conservative — only flags same suit + overlapping HCP ranges + neither artificial + neither has shape ref
+- **UnresolvedNode**: `{is_unresolved: true, bml_original: ..., reason: ...}` (no `_` prefix)
+- **Fixtures**: Use `authors: [{name: "Test"}]` not `authors: ["Test"]`
+- **selection_rules format**: Top-level dict with either `rules: [...]` or `{group_name: {rules: [...]}}`
 
 ## Key Architectural Decisions (ADR)
 
 See `BBDSL_IMPLEMENTATION-PLAN.md` § 架構決策記錄 for full details:
 
 - **ADR-1**: Dual licensing — MIT (code) + CC-BY-SA-4.0 (convention files)
-- **ADR-4**: `UnresolvedNode` polymorphic type for BML import failures (no `_` prefix fields)
+- **ADR-4**: `UnresolvedNode` polymorphic type for BML import failures
 - **ADR-5**: `OpponentPattern` is pure data; matching logic lives in `core/opponent_matcher.py`
 - **ADR-7**: Phase 5 (community platform) is a separate repo
 
-## Key Example
+## Workflow Skills (`.claude/skills/`)
 
-`process/1-discover/sayc.bbdsl.yaml` — Standard American Yellow Card system in BBDSL format.
+- **es-kick-off-discovery**: Event Storming to clarify raw user ideas into structured specs
+- **formulation**: Transform ES output into feature files, API specs, and entity models
+- **new-requirement**: Handle incremental requirement changes across all spec artifacts
