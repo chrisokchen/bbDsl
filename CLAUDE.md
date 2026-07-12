@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **BBDSL** (Bridge Bidding Description Specification Language) is a domain-specific language for describing bridge bidding systems in structured, machine-readable YAML. It bridges the semantic gap between existing formats (BML, BBOalert, Dealer, PBN) by providing verifiable logic, AI-readable semantics, and ecosystem interoperability.
 
-**Current status**: Phase 4.3 complete. 851 tests, 82% coverage. All sprints 1.1–4.3 implemented.
+**Current status**: Phase 4.3 complete. 908 tests, 85% coverage. All sprints 1.1–4.3 implemented.
 
 ## Canonical References
 
@@ -75,11 +75,11 @@ Key architectural patterns:
 
 3. **Context Overrides**: Base system + seat/vulnerability-specific overrides. Opponent action patterns use 9 syntax forms (concrete bids, ranges, types, logical combinations).
 
-4. **Selection Rules Engine**: Priority-based bid selection with Dealer-compatible expression conditions. Ordered evaluation, first match wins (`bbdsl/core/selector.py`).
+4. **Selection Rules Engine**: Priority-based bid selection with Dealer-compatible expression conditions. Ordered evaluation, first match wins (`bbdsl/core/selector.py`). Conditions are evaluated with an AST whitelist, never `eval()` — platform uploads are untrusted input.
 
 5. **14 Validation Rules**: HCP coverage gaps (val-001), bid overlap (val-002), through convention ID format (val-011), selection rule exhaustiveness (val-014). Each has type (error/warning) and scope.
 
-6. **Simulation Engine**: Two-phase random deal generation (rejection sampling from 52-card deck). Auction tree navigation by `ns_path` (N/S non-Pass bids): even depth → responses, odd depth → continuations.
+6. **Simulation Engine**: Two-phase random deal generation (rejection sampling from 52-card deck). Auction tree navigation by `ns_path` (N/S non-Pass bids): even depth → responses, odd depth → continuations. Bid choice resolves in three stages — `selection_rules` (openings) → node `priority` → constraint specificity. **Never declaration order**: the loosest opening is written first, so a plain first-match scan makes 1NT and the major openings unreachable. Insufficient bids are filtered before a call is made.
 
 ### Package Structure
 
@@ -109,10 +109,10 @@ bbdsl/
 │   ├── bml_importer.py        # import_bml(), UnresolvedNode for parse failures
 │   └── bboalert_importer.py   # import_bboalert()
 └── cli/main.py    # Click CLI: all commands above
-examples/
-├── precision.bbdsl.yaml     # Precision Club (9 openings, all 14 rules pass)
-├── sayc.bbdsl.yaml          # SAYC (14 openings, all 14 rules pass)
-└── two_over_one.bbdsl.yaml  # 2/1 GF (9 openings, all 14 rules pass)
+examples/                    # each has selection_rules; all openings reachable in simulation
+├── precision.bbdsl.yaml     # Precision Club (9 openings; 1NT is 13-15, 2C is natural 6+ clubs)
+├── sayc.bbdsl.yaml          # SAYC (14 openings)
+└── two_over_one.bbdsl.yaml  # 2/1 GF (9 openings)
 ```
 
 ## Coding Conventions
@@ -129,7 +129,11 @@ examples/
 - **Deal generation**: 52-card deck shuffled and split 4×13; each card appears exactly once
 - **Auction termination**: 3 consecutive Passes after a non-Pass bid, OR 4 initial Passes (passed out), OR max 40 steps
 - **PBN Note tag**: Only N/S non-Pass bids shown; format `"BBDSL: {system} | N:1C(16+ HCP) | S:1D(neg)"`
-- **val-002 overlap**: Conservative — only flags same suit + overlapping HCP ranges + neither artificial + neither has shape ref
+- **val-002 overlap**: Flags sibling bids that a single hand could satisfy (HCP ∩ shape ∩ every suit range). Artificial bids exempt. An overlap with a declared tie-break (`selection_rules` or `priority` on both nodes) passes; one without is a warning
+- **Validation results**: `skipped=True` means the rule found nothing to check — it is not a pass. `bbdsl validate` reports passed/skipped separately
+- **Declarer**: first player of the winning side to name the final strain (Law 54), not whoever bid last
+- **BML keyword matching**: whole-word only. `'art'` is a substring of `'hearts'` — substring matching marked every natural heart bid artificial + alertable
+- **Dealer bridge**: constraints Dealer cannot express (`suit_quality`, `stopper_in`, …) are reported via `dropped`/`warnings`, never silently discarded
 - **UnresolvedNode**: `{is_unresolved: true, bml_original: ..., reason: ...}` (no `_` prefix)
 - **Fixtures**: Use `authors: [{name: "Test"}]` not `authors: ["Test"]`
 - **selection_rules format**: Top-level dict with either `rules: [...]` or `{group_name: {rules: [...]}}`
@@ -140,7 +144,7 @@ See `BBDSL_IMPLEMENTATION-PLAN.md` § 架構決策記錄 for full details:
 
 - **ADR-1**: Dual licensing — MIT (code) + CC-BY-SA-4.0 (convention files)
 - **ADR-4**: `UnresolvedNode` polymorphic type for BML import failures
-- **ADR-5**: `OpponentPattern` is pure data; matching logic lives in `core/opponent_matcher.py`
+- **ADR-5**: `OpponentPattern` is pure data; the matching engine (`core/opponent_matcher.py`) is **not implemented yet** — `context_overrides` is checked for duplicates by val-009 and otherwise ignored by every engine
 - **ADR-7**: Phase 5 (community platform) is a separate repo
 
 ## Workflow Skills (`.claude/skills/`)

@@ -12,7 +12,12 @@ from bbdsl.models.system import BBDSLDocument
 
 
 class ValidationResult(BaseModel):
-    """Single validation rule result."""
+    """Single validation rule result.
+
+    ``skipped`` marks a rule that had nothing to examine (e.g. a document with
+    no conventions cannot violate the convention-id rule). Such a rule is not
+    a pass: reporting it as one advertises a guarantee that was never checked.
+    """
 
     rule_id: str
     rule_name: str
@@ -20,6 +25,7 @@ class ValidationResult(BaseModel):
     passed: bool
     message: str
     details: list[dict[str, Any]] = []
+    skipped: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         """Return a JSON-serializable dict."""
@@ -40,20 +46,31 @@ class ValidationReport(BaseModel):
     def warning_count(self) -> int:
         return sum(1 for r in self.results if not r.passed and r.severity == "warning")
 
+    @property
+    def skipped_count(self) -> int:
+        return sum(1 for r in self.results if r.skipped)
+
+    @property
+    def passed_count(self) -> int:
+        """Rules that actually ran and passed (skipped rules excluded)."""
+        return sum(1 for r in self.results if r.passed and not r.skipped)
+
     def has_errors(self) -> bool:
         return self.error_count > 0
 
     def to_dict(self) -> dict[str, Any]:
         """Return a fully JSON-serializable dict.
 
-        Includes computed properties ``error_count`` and
-        ``warning_count`` for convenience.
+        Includes computed properties ``error_count``, ``warning_count``,
+        ``passed_count`` and ``skipped_count`` for convenience.
         """
         return {
             "document_name": self.document_name,
             "results": [r.to_dict() for r in self.results],
             "error_count": self.error_count,
             "warning_count": self.warning_count,
+            "passed_count": self.passed_count,
+            "skipped_count": self.skipped_count,
         }
 
 
@@ -118,7 +135,8 @@ class Validator:
                     rule_name="hcp-coverage",
                     severity="warning",
                     passed=True,
-                    message="HCP coverage: at least one opening has no HCP limit (covers all).",
+                    skipped=True,
+                    message="HCP coverage: at least one opening has no HCP limit (not checked).",
                 )
             hcp = hand.hcp
             lo = hcp.min if hcp.min is not None else 0
@@ -185,14 +203,36 @@ class Validator:
     def _check_val_002(self) -> ValidationResult:
         violations: list[dict] = []
         self._check_siblings_overlap(self.doc.openings, ["openings"], violations)
+
+        # An overlap with a declared tie-break is intentional: something in the
+        # document says which of the two bids wins. Openings are ordered by
+        # selection_rules; sibling responses by their `priority`. An overlap
+        # with neither is left to the engine's specificity heuristic — still
+        # deterministic, but nobody wrote down what was meant.
+        unresolved = [v for v in violations if not v.pop("_tie_broken", False)]
+
+        if unresolved:
+            return ValidationResult(
+                rule_id="val-002",
+                rule_name="no-overlap",
+                severity="warning",
+                passed=False,
+                message=(
+                    f"{len(unresolved)} overlapping bid pair(s) with no declared "
+                    f"tie-break (add selection_rules or a priority)."
+                ),
+                details=unresolved,
+            )
         if violations:
             return ValidationResult(
                 rule_id="val-002",
                 rule_name="no-overlap",
-                severity="error",
-                passed=False,
-                message=f"{len(violations)} HCP/shape overlap(s) detected.",
-                details=violations,
+                severity="warning",
+                passed=True,
+                message=(
+                    f"{len(violations)} overlapping bid pair(s), all with a "
+                    f"declared tie-break."
+                ),
             )
         return ValidationResult(
             rule_id="val-002",
@@ -202,20 +242,60 @@ class Validator:
             message="No HCP/shape overlaps found.",
         )
 
+    def _selection_rule_bids(self) -> set[str]:
+        """Bids that selection_rules explicitly orders."""
+        if not self.doc.selection_rules:
+            return set()
+        from bbdsl.core.selector import parse_selection_rules
+
+        return {
+            str(r.get("select"))
+            for r in parse_selection_rules(self.doc.selection_rules)
+            if r.get("select")
+        }
+
+    def _shapes_of(self, shape: Any) -> set[str] | None:
+        """Resolve a shape ref to its set of generic shapes, or None if unknown."""
+        ref = None
+        if isinstance(shape, dict):
+            ref = shape.get("ref")
+        elif isinstance(shape, str) and shape not in ("any", ""):
+            ref = shape
+        if not ref:
+            return None
+        patterns = (
+            self.doc.definitions.patterns
+            if self.doc.definitions and self.doc.definitions.patterns
+            else {}
+        )
+        pattern = patterns.get(ref)
+        if pattern is None:
+            return None
+        shapes = set(pattern.shapes or []) | set(pattern.shapes_exact or [])
+        return shapes or None
+
     def _check_siblings_overlap(
         self, nodes: list | None, path: list[str], violations: list[dict]
     ) -> None:
         if not nodes:
             return
+        selection_bids = self._selection_rule_bids()
         # Check pairwise overlap among siblings
         for i in range(len(nodes)):
             for j in range(i + 1, len(nodes)):
                 a, b = nodes[i], nodes[j]
                 if self._bids_overlap(a, b):
+                    ordered_by_rules = (
+                        a.bid in selection_bids and b.bid in selection_bids
+                    )
+                    ordered_by_priority = (
+                        a.priority is not None and b.priority is not None
+                    )
                     violations.append({
                         "path": "/".join(path),
                         "bid_a": a.bid,
                         "bid_b": b.bid,
+                        "_tie_broken": ordered_by_rules or ordered_by_priority,
                     })
             # Recurse into each node's responses
             node = nodes[i]
@@ -229,13 +309,15 @@ class Validator:
                 )
 
     def _bids_overlap(self, a: Any, b: Any) -> bool:
-        """Check if two sibling bids have overlapping HCP ranges AND
-        overlapping suit constraints, indicating the same hand could
-        satisfy both bids.
+        """True if some legal hand could satisfy both sibling bids.
 
-        Conservative in Phase 1: only flags when both bids require
-        the SAME suit(s) with overlapping length ranges and overlapping
-        HCP. Skips pairs involving shape refs or artificial bids.
+        Two bids overlap when their HCP ranges, their shape sets and *every*
+        suit-length range can be satisfied simultaneously. A missing constraint
+        is not a mismatch — it admits everything, which is exactly why an
+        unconstrained bid overlaps a constrained one.
+
+        Artificial bids are still exempt: they are chosen by convention rather
+        than by hand shape, so an overlap on hand terms is not a defect.
         """
         ma = getattr(a, "meaning", None)
         mb = getattr(b, "meaning", None)
@@ -244,48 +326,45 @@ class Validator:
         ha, hb = ma.hand, mb.hand
         if not ha or not hb:
             return False
-        # Skip if either bid is artificial (priority-based, not constraint-based)
         if ma.artificial or mb.artificial:
             return False
-        # Both must define HCP ranges
         if not ha.hcp or not hb.hcp:
             return False
-        # Check HCP overlap
+
+        # HCP ranges must intersect
         a_min = ha.hcp.min if ha.hcp.min is not None else 0
         a_max = ha.hcp.max if ha.hcp.max is not None else 37
         b_min = hb.hcp.min if hb.hcp.min is not None else 0
         b_max = hb.hcp.max if hb.hcp.max is not None else 37
         if max(a_min, b_min) > min(a_max, b_max):
-            return False  # No HCP overlap
-        # If either has a shape ref, can't resolve exclusivity in Phase 1
-        if ha.shape or hb.shape:
             return False
-        # Both must have suit constraints, and at least one common suit
-        # with overlapping length ranges
-        suits = ("clubs", "diamonds", "hearts", "spades")
-        a_has_suit = any(
-            getattr(ha, s, None) and (getattr(ha, s).min is not None or getattr(ha, s).max is not None)
-            for s in suits
-        )
-        b_has_suit = any(
-            getattr(hb, s, None) and (getattr(hb, s).min is not None or getattr(hb, s).max is not None)
-            for s in suits
-        )
-        if not a_has_suit or not b_has_suit:
-            return False
-        # Check for at least one common suit with overlapping ranges
-        for suit in suits:
+
+        # Shape sets must intersect. If only one bid names a shape, the other
+        # admits every shape, so they still overlap.
+        shapes_a = self._shapes_of(ha.shape)
+        shapes_b = self._shapes_of(hb.shape)
+        if shapes_a is not None and shapes_b is not None:
+            if not (shapes_a & shapes_b):
+                return False
+
+        # Every suit's length range must intersect
+        for suit in ("clubs", "diamonds", "hearts", "spades"):
             ra = getattr(ha, suit, None)
             rb = getattr(hb, suit, None)
-            if not ra or not rb:
-                continue
-            sa_min = ra.min if ra.min is not None else 0
-            sa_max = ra.max if ra.max is not None else 13
-            sb_min = rb.min if rb.min is not None else 0
-            sb_max = rb.max if rb.max is not None else 13
-            if max(sa_min, sb_min) <= min(sa_max, sb_max):
-                return True  # Same suit, overlapping lengths + overlapping HCP
-        return False
+            if ra is None or rb is None:
+                continue    # unconstrained on this suit → no conflict
+            sa_min = ra.exactly if ra.exactly is not None else (ra.min or 0)
+            sa_max = ra.exactly if ra.exactly is not None else (
+                ra.max if ra.max is not None else 13
+            )
+            sb_min = rb.exactly if rb.exactly is not None else (rb.min or 0)
+            sb_max = rb.exactly if rb.exactly is not None else (
+                rb.max if rb.max is not None else 13
+            )
+            if max(sa_min, sb_min) > min(sa_max, sb_max):
+                return False    # this suit alone makes the bids exclusive
+
+        return True
 
     def _suits_mutually_exclusive(self, ha: Any, hb: Any) -> bool:
         """Two hand constraints are mutually exclusive if they require
@@ -377,7 +456,8 @@ class Validator:
                 rule_name="convention-conflicts",
                 severity="error",
                 passed=True,
-                message="No conventions defined.",
+                skipped=True,
+                message="No conventions defined (not checked).",
             )
         # Build conflict graph
         conflicts: list[dict] = []
@@ -602,10 +682,14 @@ class Validator:
                 else:
                     seen[key] = idx
 
+        override_count = 0
+
         def walk(nodes: list[Any], parent: str) -> None:
+            nonlocal override_count
             for node in nodes:
                 bid = getattr(node, "bid", None) or "?"
                 path = f"{parent}/{bid}" if parent else bid
+                override_count += len(getattr(node, "context_overrides", None) or [])
                 check_node(node, path)
                 responses = getattr(node, "responses", None) or []
                 continuations = getattr(node, "continuations", None) or []
@@ -625,12 +709,24 @@ class Validator:
                 message=f"{len(conflicts)} duplicate context_override condition(s) detected.",
                 details=conflicts,
             )
+        if override_count == 0:
+            return ValidationResult(
+                rule_id="val-009",
+                rule_name="seat-vul-no-conflict",
+                severity="error",
+                passed=True,
+                skipped=True,
+                message="No context_overrides defined (not checked).",
+            )
         return ValidationResult(
             rule_id="val-009",
             rule_name="seat-vul-no-conflict",
             severity="error",
             passed=True,
-            message="No duplicate seat/vulnerability context overrides found.",
+            message=(
+                f"No duplicate seat/vulnerability overrides "
+                f"among {override_count} context_override(s)."
+            ),
         )
 
     # ------------------------------------------------------------------
@@ -724,7 +820,8 @@ class Validator:
                 rule_name="convention-id-format",
                 severity="error",
                 passed=True,
-                message="No conventions defined.",
+                skipped=True,
+                message="No conventions defined (not checked).",
             )
         bad_ids: list[dict] = []
         for name, conv in self.doc.conventions.items():
@@ -759,7 +856,8 @@ class Validator:
                 rule_name="shape-format",
                 severity="error",
                 passed=True,
-                message="No patterns defined.",
+                skipped=True,
+                message="No patterns defined (not checked).",
             )
         bad: list[dict] = []
         for name, pattern in self.doc.definitions.patterns.items():
@@ -863,7 +961,8 @@ class Validator:
                 rule_name="selection-rules-exhaustive",
                 severity="warning",
                 passed=True,
-                message="No selection_rules defined (skipped).",
+                skipped=True,
+                message="No selection_rules defined (not checked).",
             )
 
         from bbdsl.core.selector import parse_selection_rules

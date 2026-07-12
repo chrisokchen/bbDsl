@@ -1,5 +1,6 @@
 # SAYC (Standard American Yellow Card) — BBDSL v0.3 範例
 # Standard American bidding system as popularized by ACBL
+# SPDX-License-Identifier: CC-BY-SA-4.0
 
 bbdsl: "0.3"
 
@@ -99,13 +100,14 @@ openings:
     id: "open-1c"
     meaning:
       description:
-        zh-TW: "12-21 HCP，1+ 梅花（可能短梅花）"
-        en: "12-21 HCP, 1+ clubs (may be short)"
+        zh-TW: "12-21 HCP，3+ 梅花（可能為預備叫）"
+        en: "12-21 HCP, 3+ clubs (may be a prepared bid)"
       hand:
         hcp: {min: 12, max: 21}
-        clubs: {min: 1}
+        clubs: {min: 3}
     responses:
       - bid: "1D"
+        priority: 50
         by: responder
         meaning:
           description:
@@ -115,6 +117,7 @@ openings:
             diamonds: {min: 4}
           forcing: one_round
       - bid: "1H"
+        priority: 20
         by: responder
         meaning:
           description:
@@ -124,6 +127,7 @@ openings:
             hearts: {min: 4}
           forcing: one_round
       - bid: "1S"
+        priority: 10
         by: responder
         meaning:
           description:
@@ -133,6 +137,7 @@ openings:
             spades: {min: 4}
           forcing: one_round
       - bid: "1NT"
+        priority: 70
         by: responder
         meaning:
           description:
@@ -141,6 +146,7 @@ openings:
             hcp: {min: 6, max: 10}
             shape: {ref: balanced}
       - bid: "2C"
+        priority: 60
         by: responder
         meaning:
           description:
@@ -150,6 +156,7 @@ openings:
             clubs: {min: 5}
           forcing: one_round
       - bid: "2NT"
+        priority: 40
         by: responder
         meaning:
           description:
@@ -158,6 +165,7 @@ openings:
             hcp: {min: 13, max: 15}
             shape: {ref: balanced}
       - bid: "3NT"
+        priority: 30
         by: responder
         meaning:
           description:
@@ -171,11 +179,11 @@ openings:
     id: "open-1d"
     meaning:
       description:
-        zh-TW: "12-21 HCP，1+ 方塊"
-        en: "12-21 HCP, 1+ diamonds (may be short)"
+        zh-TW: "12-21 HCP，3+ 方塊"
+        en: "12-21 HCP, 3+ diamonds"
       hand:
         hcp: {min: 12, max: 21}
-        diamonds: {min: 1}
+        diamonds: {min: 3}
     responses:
       - bid: "1H"
         by: responder
@@ -619,7 +627,7 @@ openings:
         en: "5-10 HCP, 7+ clubs, preemptive"
       hand:
         hcp: {min: 5, max: 10}
-        clubs: {min: 7, max: 7}
+        clubs: {min: 7}
       preemptive: true
     responses:
       - bid: "3NT"
@@ -685,3 +693,127 @@ openings:
         meaning:
           description:
             en: "To play, raise or values"
+
+
+# ---------------------------------------------------------------------------
+# 開叫選擇規則
+#
+# 叫牌樹描述「每個叫品的意義」，這裡描述「多個叫品同時成立時叫哪一個」。
+# SAYC 的關鍵順序：先制叫 → 強 2C → 1NT/2NT（平均牌優先於一線花色）→
+# 五張高花 → 低花。缺了這個順序，任何 12-21 點的牌都會落進第一個列出的
+# 開叫，1NT 與五張高花開叫將永遠不會出現。
+# ---------------------------------------------------------------------------
+selection_rules:
+  opening_selection:
+    rules:
+    - id: "strong-2c"
+      priority: 1
+      condition: "hcp >= 22"
+      select: "2C"
+      description:
+        en: "22+ HCP: artificial strong 2C"
+
+    - id: "2nt-balanced"
+      priority: 2
+      condition: "hcp >= 20 && hcp <= 21 && shape in balanced"
+      select: "2NT"
+      description:
+        en: "20-21 balanced"
+
+    - id: "1nt-balanced"
+      priority: 3
+      condition: "hcp >= 15 && hcp <= 17 && shape in balanced"
+      select: "1NT"
+      description:
+        en: "15-17 balanced: 1NT takes precedence over a suit opening"
+
+    - id: "one-spade"
+      priority: 4
+      condition: "hcp >= 12 && hcp <= 21 && spades >= 5"
+      select: "1S"
+      description:
+        en: "12-21 HCP, 5+ spades (higher of two five-card suits)"
+
+    - id: "one-heart"
+      priority: 5
+      condition: "hcp >= 12 && hcp <= 21 && hearts >= 5"
+      select: "1H"
+      description:
+        en: "12-21 HCP, 5+ hearts"
+
+    - id: "one-diamond"
+      priority: 6
+      condition: "hcp >= 12 && hcp <= 21 && diamonds >= 3 && diamonds >= clubs"
+      select: "1D"
+      description:
+        en: "12-21 HCP, 3+ diamonds, longer than (or equal to) clubs"
+
+    - id: "one-club"
+      priority: 7
+      condition: "hcp >= 12 && hcp <= 21 && clubs >= 3"
+      select: "1C"
+      description:
+        en: "12-21 HCP, 3+ clubs"
+
+    - id: "one-diamond-short"
+      priority: 8
+      condition: "hcp >= 12 && hcp <= 21 && diamonds >= 3"
+      select: "1D"
+      description:
+        en: "12-21 HCP, 3+ diamonds (clubs too short for 1C)"
+
+    - id: "preempt-3s"
+      priority: 20
+      condition: "hcp >= 5 && hcp <= 10 && spades >= 7"
+      select: "3S"
+      description:
+        en: "5-10 HCP, 7+ spades: preempt"
+
+    - id: "preempt-3h"
+      priority: 21
+      condition: "hcp >= 5 && hcp <= 10 && hearts >= 7"
+      select: "3H"
+      description:
+        en: "5-10 HCP, 7+ hearts: preempt"
+
+    - id: "preempt-3d"
+      priority: 22
+      condition: "hcp >= 5 && hcp <= 10 && diamonds >= 7"
+      select: "3D"
+      description:
+        en: "5-10 HCP, 7+ diamonds: preempt"
+
+    - id: "preempt-3c"
+      priority: 23
+      condition: "hcp >= 5 && hcp <= 10 && clubs >= 7"
+      select: "3C"
+      description:
+        en: "5-10 HCP, 7+ clubs: preempt"
+
+    - id: "weak-2s"
+      priority: 30
+      condition: "hcp >= 6 && hcp <= 11 && spades == 6"
+      select: "2S"
+      description:
+        en: "6-11 HCP, exactly 6 spades: weak two"
+
+    - id: "weak-2h"
+      priority: 31
+      condition: "hcp >= 6 && hcp <= 11 && hearts == 6"
+      select: "2H"
+      description:
+        en: "6-11 HCP, exactly 6 hearts: weak two"
+
+    - id: "weak-2d"
+      priority: 32
+      condition: "hcp >= 6 && hcp <= 11 && diamonds == 6"
+      select: "2D"
+      description:
+        en: "6-11 HCP, exactly 6 diamonds: weak two"
+
+    - id: "pass"
+      priority: 99
+      condition: "true"
+      select: "Pass"
+      description:
+        en: "Not enough to open"

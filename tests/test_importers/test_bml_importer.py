@@ -299,3 +299,47 @@ class TestImportBml:
         assert n > 0
         content = out.read_text(encoding='utf-8')
         assert 'WARNING' in content or 'unresolved' in content.lower()
+
+
+# ---------------------------------------------------------------------------
+# Keyword matching must respect word boundaries (review finding F-2)
+# ---------------------------------------------------------------------------
+
+class TestKeywordWordBoundaries:
+    """'art' must not match inside 'hearts'.
+
+    A natural heart bid imported as artificial/alertable would misinform
+    opponents at the table, so these are correctness tests, not style tests.
+    """
+
+    @pytest.mark.parametrize("desc", [
+        "11-15 HCP, 5+ hearts",
+        "6-9 HCP, 3+ heart support",
+        "hearts and clubs two-suiter",
+        "8+ HCP, 5+ hearts, GF",
+    ])
+    def test_natural_heart_bids_are_not_artificial(self, desc):
+        sem = extract_semantics(desc)
+        assert not sem.get('artificial')
+        assert not sem.get('alertable')
+
+    @pytest.mark.parametrize("desc,expected", [
+        ("Transfer to spades, art, f1", True),
+        ("relay, asking for shape", True),
+        ("artificial, alertable", True),
+        ("11-15 HCP, 5+ spades", False),
+        ("12-14 HCP, balanced", False),
+    ])
+    def test_artificial_true_positives_still_detected(self, desc, expected):
+        assert bool(extract_semantics(desc).get('artificial')) is expected
+
+    @pytest.mark.parametrize("desc,level", [
+        ("game-forcing", "game"),
+        ("non-forcing", "none"),
+        ("8+ HCP, 5+ hearts, GF", "game"),
+        ("6+ HCP, forcing", "one_round"),
+    ])
+    def test_forcing_longest_keyword_wins(self, desc, level):
+        # A word boundary sits on the hyphen, so a bare 'forcing' also matches
+        # inside 'game-forcing'; the longer key must take precedence.
+        assert extract_semantics(desc).get('forcing') == level

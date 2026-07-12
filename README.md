@@ -40,6 +40,12 @@
 *   **資訊意圖 (Intent)**：標記該叫品是「建設性 (Constructive)」、「破壞性 (Destructive)」還是「詢問 (Interrogative)」。
 
 ### 2.2 YAML 語法範例
+
+> ⚠️ **實作狀態**：下方的 `ai_meta` 區塊是 **Phase 6 的設計願景，v0.3 尚未實作**。
+> 它不存在於 `BBDSL-SPEC-v0.3.md`、`bbdsl-schema-v0.3.json` 或 Pydantic 模型中。
+> 由於模型設定 `extra="allow"`，你寫了它不會報錯，但目前**沒有任何程式碼會讀取它**。
+> `meaning` / `hand` 區塊則是 v0.3 已實作、已驗證的部分。
+
 ```yaml
   - bid: "1NT"
     id: "open-1nt"
@@ -48,7 +54,7 @@
       hand:
         hcp: { min: 15, max: 17 }
         shape: { ref: "balanced" }
-    # ====== AI 擴充區塊 ======
+    # ====== AI 擴充區塊（Phase 6 願景，尚未實作） ======
     ai_meta:
       intent: "constructive"
       tactical_flexibility: "strict"
@@ -147,7 +153,7 @@ Schema+MVP       實戰價值          視覺化+教學       AI 整合         
 (完成)            (完成)            (完成)            (完成)            (待開發)
 ```
 
-**當前狀態**：Phase 4.3 全數完成 ✅　|　851 個測試通過　|　82% 覆蓋率
+**當前狀態**：Phase 4.3 全數完成 ✅　|　908 個測試通過　|　85% 覆蓋率
 
 ---
 

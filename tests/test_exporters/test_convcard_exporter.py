@@ -153,8 +153,9 @@ class TestExtractNtInfo:
         assert info is not None
 
     def test_hcp_range_precision(self, precision_doc):
+        # Precision opens a weak NT (13-15); 15-17 is SAYC's range.
         info = _extract_nt_info(precision_doc, "en")
-        assert "15-17" in info["hcp_range"]
+        assert "13-15" in info["hcp_range"]
 
     def test_sayc_has_nt(self, sayc_doc):
         info = _extract_nt_info(sayc_doc, "en")
@@ -180,12 +181,14 @@ class TestExtractNtInfo:
 # ---------------------------------------------------------------------------
 
 class TestExtractStrong2cInfo:
-    def test_precision_has_strong_2c(self, precision_doc):
+    def test_precision_has_no_strong_2c(self, precision_doc):
+        # In Precision every strong hand goes through the 16+ 1C opening;
+        # its 2C is a natural 6+ club bid, not a strong artificial one.
         info = _extract_strong_2c_info(precision_doc, "en")
-        assert info is not None
+        assert info is None
 
-    def test_hcp_summary_present(self, precision_doc):
-        info = _extract_strong_2c_info(precision_doc, "en")
+    def test_hcp_summary_present(self, sayc_doc):
+        info = _extract_strong_2c_info(sayc_doc, "en")
         assert info["hcp_summary"] != ""
 
     def test_sayc_has_strong_2c(self, sayc_doc):
@@ -275,7 +278,7 @@ class TestExportConvcard:
 
     def test_hcp_range_in_nt_section(self, precision_doc):
         html = export_convcard(precision_doc)
-        assert "15-17" in html
+        assert "13-15" in html
 
     def test_artificial_badge_present(self, precision_doc):
         html = export_convcard(precision_doc)

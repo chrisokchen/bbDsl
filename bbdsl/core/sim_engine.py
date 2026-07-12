@@ -294,17 +294,140 @@ def _get_candidates(current: Any | None, doc: BBDSLDocument) -> list[Any]:
 # Bid selection
 # ---------------------------------------------------------------------------
 
-def _select_bid(hand: BridgeHand, candidates: list[Any]) -> tuple[str, str]:
-    """Select the first candidate bid whose constraint is satisfied by *hand*.
+def hand_to_condition_vars(hand: BridgeHand) -> dict[str, Any]:
+    """Project a BridgeHand into the variable dict used by selection_rules."""
+    lengths = hand.suit_lengths
+    shape: str | None = None
+    if hand.is_balanced:
+        shape = "balanced"
+    elif hand.is_semi_balanced:
+        shape = "semi_balanced"
 
-    Args:
-        hand: The bridge hand to evaluate.
-        candidates: Ordered list of BidNodes.
+    aces = sum(1 for cards in _by_suit(hand).values() for c in cards if c == "A")
+    kings = sum(1 for cards in _by_suit(hand).values() for c in cards if c == "K")
+
+    sorted_lengths = sorted(lengths.values(), reverse=True)
+    return {
+        "hcp": hand.hcp,
+        "controls": aces * 2 + kings,
+        "spades": lengths["spades"],
+        "hearts": lengths["hearts"],
+        "diamonds": lengths["diamonds"],
+        "clubs": lengths["clubs"],
+        "longest_suit": sorted_lengths[0],
+        "second_suit": sorted_lengths[1],
+        "shape": shape,
+    }
+
+
+def _by_suit(hand: BridgeHand) -> dict[str, list[str]]:
+    return {
+        "spades": hand.spades,
+        "hearts": hand.hearts,
+        "diamonds": hand.diamonds,
+        "clubs": hand.clubs,
+    }
+
+
+def _specificity(constraint: Any) -> float:
+    """Estimate how restrictive *constraint* is; higher = checked earlier.
+
+    Fallback ordering only, for documents that declare neither selection_rules
+    nor priorities. Declaration order is not usable as a proxy: the loosest
+    opening tends to be written first (1C before 1NT), so a plain first-match
+    scan lets it swallow every hand that any later opening wanted.
+
+    A suit minimum of 1-2 cards is treated as vacuous, because it is: almost
+    every hand holds two clubs.
+    """
+    if constraint is None:
+        return -1.0
+
+    score = 0.0
+
+    hcp = getattr(constraint, "hcp", None)
+    if hcp is not None and (hcp.min is not None or hcp.max is not None):
+        lo = hcp.min if hcp.min is not None else 0
+        hi = hcp.max if hcp.max is not None else 37
+        score += (38 - (hi - lo)) * 0.5   # narrower range → more specific
+
+    for suit in SUITS:
+        r = getattr(constraint, suit, None)
+        if r is None:
+            continue
+        if r.exactly is not None:
+            score += 12
+        elif r.min is not None:
+            score += max(0, r.min - 2) * 3
+        if r.max is not None and r.min is None:
+            score += 2
+
+    if getattr(constraint, "shape", None):
+        score += 6
+    if getattr(constraint, "controls", None):
+        score += 5
+    if getattr(constraint, "losing_tricks", None):
+        score += 5
+
+    return score
+
+
+def _rank_candidates(candidates: list[Any]) -> list[Any]:
+    """Order candidate bids: explicit ``priority`` if authored, else specificity.
+
+    Lower ``priority`` numbers are evaluated first (1 = try before 2), matching
+    the convention used by selection_rules.
+    """
+    if any(getattr(n, "priority", None) is not None for n in candidates):
+        return sorted(
+            candidates,
+            key=lambda n: (
+                getattr(n, "priority", None) is None,   # unprioritised last
+                getattr(n, "priority", None) or 0,
+            ),
+        )
+
+    return sorted(
+        candidates,
+        key=lambda n: -_specificity(
+            getattr(getattr(n, "meaning", None), "hand", None)
+        ),
+    )
+
+
+def _select_bid(
+    hand: BridgeHand,
+    candidates: list[Any],
+    selection_rules: dict | None = None,
+) -> tuple[str, str]:
+    """Select the bid this hand should make from *candidates*.
+
+    Resolution order:
+      1. ``selection_rules`` (an explicit, human-authored priority ladder) —
+         only consulted for openings, where the document defines one.
+      2. ``priority`` on the bid nodes.
+      3. Constraint specificity (see :func:`_specificity`).
 
     Returns:
-        ``(bid_string, reasoning_string)`` — ``("Pass", ...)`` if no match.
+        ``(bid_string, reasoning_string)`` — ``("Pass", ...)`` if nothing matches.
     """
-    for node in candidates:
+    if selection_rules:
+        from bbdsl.core.selector import select_opening
+
+        selected = select_opening(hand_to_condition_vars(hand), selection_rules)
+        if selected and selected.lower() != "pass":
+            node = _find_node_by_bid(candidates, selected)
+            if node is not None:
+                constraint = getattr(getattr(node, "meaning", None), "hand", None)
+                return (
+                    selected,
+                    f"{selected}: {_describe_constraint(constraint)} "
+                    f"(via selection_rules)",
+                )
+        if selected and selected.lower() == "pass":
+            return ("Pass", "selection_rules → Pass")
+
+    for node in _rank_candidates(candidates):
         bid = getattr(node, "bid", None)
         if not bid:
             continue
@@ -325,6 +448,49 @@ def _select_bid(hand: BridgeHand, candidates: list[Any]) -> tuple[str, str]:
 # Auction termination helpers
 # ---------------------------------------------------------------------------
 
+_STRAINS = ["C", "D", "H", "S", "NT"]
+
+#: Rank of every contract bid, 1C (0) through 7NT (34).
+_BID_RANK: dict[str, int] = {
+    f"{level}{strain}": i
+    for i, (level, strain) in enumerate(
+        (lv, st) for lv in range(1, 8) for st in _STRAINS
+    )
+}
+
+
+def _is_sufficient(bid: str, highest: str | None) -> bool:
+    """True if *bid* legally outranks the highest bid so far."""
+    if bid == "Pass":
+        return True
+    rank = _BID_RANK.get(bid)
+    if rank is None:
+        return False            # not a contract bid we can rank
+    if highest is None:
+        return True
+    return rank > _BID_RANK.get(highest, -1)
+
+
+def declarer_of(steps: list[AuctionStep]) -> tuple[str, str] | None:
+    """Return ``(final_bid, declarer_seat)`` per the Laws, or None if passed out.
+
+    Declarer is the member of the winning partnership who *first* named the
+    final strain — not simply whoever made the last bid.
+    """
+    calls = [(s.seat, s.bid) for s in steps if s.bid != "Pass"]
+    if not calls:
+        return None
+
+    last_seat, last_bid = calls[-1]
+    strain = last_bid[1:]
+    side = ("N", "S") if last_seat in ("N", "S") else ("E", "W")
+
+    for seat, bid in calls:
+        if seat in side and bid[1:] == strain:
+            return (last_bid, seat)
+    return (last_bid, last_seat)   # unreachable in practice
+
+
 def _final_contract(steps: list[AuctionStep]) -> tuple[str | None, bool]:
     """Determine the final contract from the completed auction.
 
@@ -332,16 +498,13 @@ def _final_contract(steps: list[AuctionStep]) -> tuple[str | None, bool]:
         ``(contract_string, passed_out)`` where *contract_string* is e.g.
         ``"3NT by North"`` or ``None`` if all seats passed.
     """
-    last_non_pass: AuctionStep | None = None
-    for step in steps:
-        if step.bid != "Pass":
-            last_non_pass = step
-
-    if last_non_pass is None:
+    result = declarer_of(steps)
+    if result is None:
         return (None, True)
 
+    final_bid, declarer = result
     seat_full = {"N": "North", "E": "East", "S": "South", "W": "West"}
-    return (f"{last_non_pass.bid} by {seat_full[last_non_pass.seat]}", False)
+    return (f"{final_bid} by {seat_full[declarer]}", False)
 
 
 # ---------------------------------------------------------------------------
@@ -404,6 +567,7 @@ def simulate_deal(
     ew_path: list[str] = []
     consecutive_passes = 0
     any_non_pass = False
+    highest_bid: str | None = None
 
     for step_num in range(40):
         seat = _SEAT_ORDER[(dealer_idx + step_num) % 4]
@@ -413,9 +577,9 @@ def simulate_deal(
         if is_ns:
             current = _navigate_tree(ns_doc, ns_path)
             candidates = _get_candidates(current, ns_doc)
-            bid, reasoning = _select_bid(hand, candidates)
-            if bid != "Pass":
-                ns_path.append(bid)
+            # selection_rules describe opening choice only
+            rules = ns_doc.selection_rules if current is None else None
+            bid, reasoning = _select_bid(hand, candidates, rules)
             by = "opener" if seat == ns_opener else "responder"
         else:
             if ew_doc is None:
@@ -424,10 +588,25 @@ def simulate_deal(
             else:
                 current = _navigate_tree(ew_doc, ew_path)
                 candidates = _get_candidates(current, ew_doc)
-                bid, reasoning = _select_bid(hand, candidates)
-                if bid != "Pass":
-                    ew_path.append(bid)
+                rules = ew_doc.selection_rules if current is None else None
+                bid, reasoning = _select_bid(hand, candidates, rules)
             by = "opponent"
+
+        # An insufficient bid is not a legal call: both sides bid into one
+        # shared auction, so a side's own tree can still propose a bid the
+        # opponents have already outranked.
+        if bid != "Pass" and not _is_sufficient(bid, highest_bid):
+            bid = "Pass"
+            reasoning = (
+                f"Pass: no sufficient bid available over {highest_bid}"
+            )
+
+        if bid != "Pass":
+            highest_bid = bid
+            if is_ns:
+                ns_path.append(bid)
+            else:
+                ew_path.append(bid)
 
         auction.append(AuctionStep(seat=seat, bid=bid, by=by, reasoning=reasoning))
 

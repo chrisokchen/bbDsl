@@ -1,5 +1,6 @@
 # 2/1 Game Forcing — BBDSL v0.3 範例
 # Two Over One Game Force system
+# SPDX-License-Identifier: CC-BY-SA-4.0
 
 bbdsl: "0.3"
 
@@ -111,6 +112,7 @@ openings:
         clubs: {min: 2}
     responses:
       - bid: "1D"
+        priority: 40
         by: responder
         meaning:
           description: {en: "6+ HCP, 4+ diamonds"}
@@ -119,6 +121,7 @@ openings:
             diamonds: {min: 4}
           forcing: one_round
       - bid: "1H"
+        priority: 20
         by: responder
         meaning:
           description: {en: "6+ HCP, 4+ hearts"}
@@ -127,6 +130,7 @@ openings:
             hearts: {min: 4}
           forcing: one_round
       - bid: "1S"
+        priority: 10
         by: responder
         meaning:
           description: {en: "6+ HCP, 4+ spades"}
@@ -135,6 +139,7 @@ openings:
             spades: {min: 4}
           forcing: one_round
       - bid: "1NT"
+        priority: 60
         by: responder
         meaning:
           description: {en: "6-10 HCP, balanced"}
@@ -142,6 +147,7 @@ openings:
             hcp: {min: 6, max: 10}
             shape: {ref: balanced}
       - bid: "2C"
+        priority: 50
         by: responder
         meaning:
           description: {en: "13+ HCP, 5+ clubs, game force (2/1)"}
@@ -150,6 +156,7 @@ openings:
             clubs: {min: 5}
           forcing: game
       - bid: "2NT"
+        priority: 30
         by: responder
         meaning:
           description: {en: "13-15 HCP, balanced, invitational to 3NT"}
@@ -168,6 +175,7 @@ openings:
         diamonds: {min: 2}
     responses:
       - bid: "1H"
+        priority: 20
         by: responder
         meaning:
           description: {en: "6+ HCP, 4+ hearts"}
@@ -176,6 +184,7 @@ openings:
             hearts: {min: 4}
           forcing: one_round
       - bid: "1S"
+        priority: 10
         by: responder
         meaning:
           description: {en: "6+ HCP, 4+ spades"}
@@ -184,12 +193,14 @@ openings:
             spades: {min: 4}
           forcing: one_round
       - bid: "1NT"
+        priority: 60
         by: responder
         meaning:
           description: {en: "6-10 HCP, balanced"}
           hand:
             hcp: {min: 6, max: 10}
       - bid: "2C"
+        priority: 40
         by: responder
         meaning:
           description: {en: "13+ HCP, 5+ clubs, game force (2/1)"}
@@ -198,6 +209,7 @@ openings:
             clubs: {min: 5}
           forcing: game
       - bid: "2D"
+        priority: 50
         by: responder
         meaning:
           description: {en: "13+ HCP, 5+ diamonds, game force (2/1)"}
@@ -206,6 +218,7 @@ openings:
             diamonds: {min: 5}
           forcing: game
       - bid: "2NT"
+        priority: 30
         by: responder
         meaning:
           description: {en: "13-15 HCP, balanced"}
@@ -224,6 +237,7 @@ openings:
         hearts: {min: 5}
     responses:
       - bid: "1S"
+        priority: 10
         by: responder
         meaning:
           description: {en: "6+ HCP, 4+ spades, forcing"}
@@ -232,6 +246,7 @@ openings:
             spades: {min: 4}
           forcing: one_round
       - bid: "1NT"
+        priority: 30
         by: responder
         ref: "bbdsl/forcing-nt-v1"
         meaning:
@@ -241,6 +256,7 @@ openings:
           artificial: false
           forcing: one_round
       - bid: "2C"
+        priority: 40
         by: responder
         meaning:
           description: {en: "13+ HCP, 5+ clubs, game force (2/1 GF)"}
@@ -249,6 +265,7 @@ openings:
             clubs: {min: 5}
           forcing: game
       - bid: "2D"
+        priority: 50
         by: responder
         meaning:
           description: {en: "13+ HCP, 4+ diamonds, game force (2/1 GF)"}
@@ -257,6 +274,7 @@ openings:
             diamonds: {min: 4}
           forcing: game
       - bid: "2H"
+        priority: 60
         by: responder
         meaning:
           description: {en: "6-9 HCP, 3+ heart support, simple raise"}
@@ -264,6 +282,7 @@ openings:
             hcp: {min: 6, max: 9}
             hearts: {min: 3}
       - bid: "3H"
+        priority: 20
         by: responder
         meaning:
           description: {en: "10-12 HCP, 4+ heart support, limit raise"}
@@ -271,6 +290,7 @@ openings:
             hcp: {min: 10, max: 12}
             hearts: {min: 4}
       - bid: "4H"
+        priority: 70
         by: responder
         meaning:
           description: {en: "0-5 HCP, 5+ heart support, preemptive"}
@@ -415,6 +435,7 @@ openings:
       forcing: game
     responses:
       - bid: "2D"
+        priority: 40
         by: responder
         meaning:
           description: {en: "Waiting/negative, 0-7 HCP"}
@@ -424,6 +445,7 @@ openings:
           hand:
             hcp: {max: 7}
       - bid: "2H"
+        priority: 10
         by: responder
         meaning:
           description: {en: "8+ HCP, 5+ hearts, positive"}
@@ -432,6 +454,7 @@ openings:
             hearts: {min: 5}
           forcing: game
       - bid: "2S"
+        priority: 20
         by: responder
         meaning:
           description: {en: "8+ HCP, 5+ spades, positive"}
@@ -440,6 +463,7 @@ openings:
             spades: {min: 5}
           forcing: game
       - bid: "2NT"
+        priority: 30
         by: responder
         meaning:
           description: {en: "8+ HCP, balanced, positive"}
@@ -527,3 +551,90 @@ openings:
           description: {en: "To play, values or preemptive"}
           hand:
             spades: {min: 3}
+
+
+# ---------------------------------------------------------------------------
+# 開叫選擇規則
+#
+# 2/1 的開叫結構與 SAYC 相同（差別在回應體系：一線高花開叫後的二線非跳
+# 回應建立 GF）。開叫順序仍需明確：平均牌的 1NT/2NT 必須優先於花色開叫。
+# ---------------------------------------------------------------------------
+selection_rules:
+  opening_selection:
+    rules:
+    - id: "strong-2c"
+      priority: 1
+      condition: "hcp >= 22"
+      select: "2C"
+      description:
+        en: "22+ HCP: artificial strong 2C"
+
+    - id: "1nt-balanced"
+      priority: 2
+      condition: "hcp >= 15 && hcp <= 17 && shape in balanced"
+      select: "1NT"
+      description:
+        en: "15-17 balanced: 1NT takes precedence over a suit opening"
+
+    - id: "one-spade"
+      priority: 3
+      condition: "hcp >= 12 && hcp <= 21 && spades >= 5"
+      select: "1S"
+      description:
+        en: "12-21 HCP, 5+ spades (higher of two five-card suits)"
+
+    - id: "one-heart"
+      priority: 4
+      condition: "hcp >= 12 && hcp <= 21 && hearts >= 5"
+      select: "1H"
+      description:
+        en: "12-21 HCP, 5+ hearts"
+
+    - id: "one-diamond"
+      priority: 5
+      condition: "hcp >= 12 && hcp <= 21 && diamonds >= 3 && diamonds >= clubs"
+      select: "1D"
+      description:
+        en: "12-21 HCP, 3+ diamonds, longer than (or equal to) clubs"
+
+    - id: "one-club"
+      priority: 6
+      condition: "hcp >= 12 && hcp <= 21 && clubs >= 2"
+      select: "1C"
+      description:
+        en: "12-21 HCP, 2+ clubs (may be a prepared bid)"
+
+    - id: "one-diamond-fallback"
+      priority: 7
+      condition: "hcp >= 12 && hcp <= 21 && diamonds >= 2"
+      select: "1D"
+      description:
+        en: "12-21 HCP, 2+ diamonds"
+
+    - id: "weak-2s"
+      priority: 20
+      condition: "hcp >= 6 && hcp <= 11 && spades == 6"
+      select: "2S"
+      description:
+        en: "6-11 HCP, exactly 6 spades: weak two"
+
+    - id: "weak-2h"
+      priority: 21
+      condition: "hcp >= 6 && hcp <= 11 && hearts == 6"
+      select: "2H"
+      description:
+        en: "6-11 HCP, exactly 6 hearts: weak two"
+
+    - id: "weak-2d"
+      priority: 22
+      condition: "hcp >= 6 && hcp <= 11 && diamonds == 6"
+      select: "2D"
+      description:
+        en: "6-11 HCP, exactly 6 diamonds: weak two"
+
+    - id: "pass"
+      priority: 99
+      condition: "true"
+      select: "Pass"
+      description:
+        en: "Not enough to open"

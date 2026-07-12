@@ -1,5 +1,6 @@
 # 精準制 (Precision Club) — BBDSL v0.3 範例
 # Classic Precision Club with modern conventions
+# SPDX-License-Identifier: CC-BY-SA-4.0
 
 bbdsl: "0.3"
 
@@ -168,6 +169,7 @@ openings:
       forcing: one_round
     responses:
       - bid: "1D"
+        priority: 10
         by: responder
         meaning:
           description:
@@ -179,6 +181,7 @@ openings:
           artificial: true
           alertable: true
       - bid: "1H"
+        priority: 30
         by: responder
         meaning:
           description:
@@ -191,6 +194,7 @@ openings:
               min: 5
           forcing: game
       - bid: "1S"
+        priority: 20
         by: responder
         meaning:
           description:
@@ -203,6 +207,7 @@ openings:
               min: 5
           forcing: game
       - bid: "1NT"
+        priority: 50
         by: responder
         meaning:
           description:
@@ -216,6 +221,7 @@ openings:
               ref: "balanced"
           forcing: one_round
       - bid: "2C"
+        priority: 60
         by: responder
         meaning:
           description:
@@ -228,6 +234,7 @@ openings:
               min: 5
           forcing: game
       - bid: "2NT"
+        priority: 40
         by: responder
         meaning:
           description:
@@ -241,16 +248,20 @@ openings:
           forcing: game
 
   # === 1D: 多用途方塊 (11-15 HCP) ===
+  # 剩餘叫（residual）：11-15 點、無法開其他一線叫時使用。
+  # 「無法開其他一線叫」由 selection_rules 的順序表達，不寫進 hand 條件。
   - bid: "1D"
     id: "open-1d"
     meaning:
       description:
-        zh-TW: "11-15 HCP，可能短方塊"
-        en: "11-15 HCP, possibly short diamond"
+        zh-TW: "11-15 HCP，2+ 方塊，剩餘叫（可能短方塊）"
+        en: "11-15 HCP, 2+ diamonds, residual (may be short)"
       hand:
         hcp:
           min: 11
           max: 15
+        diamonds:
+          min: 2
     responses:
       - bid: "1H"
         by: responder
@@ -375,17 +386,19 @@ openings:
             spades:
               min: 3
 
-  # === 1NT: 無王開叫 (15-17 HCP) ===
+  # === 1NT: 無王開叫 (13-15 HCP) ===
+  # 精準制的 1NT 是弱無王 13-15（16+ 的平均牌走 1C 強梅花），
+  # 不是 SAYC 的 15-17。
   - bid: "1NT"
     id: "open-1nt"
     meaning:
       description:
-        zh-TW: "15-17 HCP，平均牌型"
-        en: "15-17 HCP, balanced"
+        zh-TW: "13-15 HCP，平均牌型"
+        en: "13-15 HCP, balanced"
       hand:
         hcp:
-          min: 15
-          max: 17
+          min: 13
+          max: 15
         shape:
           ref: "balanced"
     conventions_applied:
@@ -437,28 +450,30 @@ openings:
               ref: "balanced"
 
   # === 2C: 強人工開叫 (22+ HCP 或 Game Forcing) ===
+  # 精準制的 2C 是「自然的六張梅花、11-15 點」——
+  # 22+ 的強牌一律走 1C（16+ 強梅花），不另設強 2C。
   - bid: "2C"
     id: "open-2c"
     meaning:
       description:
-        zh-TW: "22+ HCP 或 Game Forcing 牌力"
-        en: "22+ HCP or Game Forcing values"
+        zh-TW: "11-15 HCP，六張以上梅花，自然叫"
+        en: "11-15 HCP, 6+ clubs, natural"
       hand:
         hcp:
-          min: 22
-      artificial: true
-      alertable: true
-      forcing: game
+          min: 11
+          max: 15
+        clubs:
+          min: 6
     responses:
       - bid: "2D"
         by: responder
         meaning:
           description:
-            zh-TW: "等待叫，0-7 HCP"
-            en: "Waiting bid, 0-7 HCP"
+            zh-TW: "詢問叫，11+ HCP"
+            en: "Inquiry, 11+ HCP"
           hand:
             hcp:
-              max: 7
+              min: 11
           artificial: true
           alertable: true
           forcing: one_round
@@ -466,14 +481,27 @@ openings:
         by: responder
         meaning:
           description:
-            zh-TW: "8+ HCP，平均牌型"
-            en: "8+ HCP, balanced"
+            zh-TW: "邀請局，11-12 HCP，平均牌型"
+            en: "Invitational, 11-12 HCP, balanced"
           hand:
             hcp:
-              min: 8
+              min: 11
+              max: 12
             shape:
               ref: "balanced"
-          forcing: game
+          forcing: invitational
+      - bid: "3C"
+        by: responder
+        meaning:
+          description:
+            zh-TW: "梅花加叫，6-10 HCP，三張以上梅花"
+            en: "Club raise, 6-10 HCP, 3+ clubs"
+          hand:
+            hcp:
+              min: 6
+              max: 10
+            clubs:
+              min: 3
 
   # === 2D: 精準制二方塊 (11-15 HCP, 4=4=1=4 或 4=4=0=5) ===
   - bid: "2D"
@@ -567,3 +595,95 @@ openings:
           hand:
             spades:
               min: 3
+
+
+# ---------------------------------------------------------------------------
+# 開叫選擇規則
+#
+# 叫牌樹只描述「每個叫品代表什麼」，不描述「多個叫品同時成立時該叫哪一個」。
+# 精準制的 1D 是剩餘叫（residual），這個「剩餘」語義無法寫進 hand 條件裡，
+# 只能靠順序表達：其他開叫都試過之後才輪到它。
+# 規則依序評估，第一個成立者勝出。
+# ---------------------------------------------------------------------------
+selection_rules:
+  opening_selection:
+    rules:
+    - id: "strong-club"
+      priority: 1
+      condition: "hcp >= 16"
+      select: "1C"
+      description:
+        zh-TW: "16+ 點：強梅花（所有強牌的唯一入口）"
+        en: "16+ HCP: strong club"
+
+    - id: "weak-two-hearts"
+      priority: 2
+      condition: "hcp >= 5 && hcp <= 10 && hearts >= 6"
+      select: "2H"
+      description:
+        zh-TW: "5-10 點、六張紅心：弱二"
+        en: "5-10 HCP, 6+ hearts: weak two"
+
+    - id: "weak-two-spades"
+      priority: 3
+      condition: "hcp >= 5 && hcp <= 10 && spades >= 6"
+      select: "2S"
+      description:
+        zh-TW: "5-10 點、六張黑桃：弱二"
+        en: "5-10 HCP, 6+ spades: weak two"
+
+    - id: "one-nt"
+      priority: 4
+      condition: "hcp >= 13 && hcp <= 15 && shape in balanced"
+      select: "1NT"
+      description:
+        zh-TW: "13-15 點平均牌：弱無王（優先於一線花色叫）"
+        en: "13-15 balanced: weak NT, takes precedence over suit openings"
+
+    - id: "one-spade"
+      priority: 5
+      condition: "hcp >= 11 && hcp <= 15 && spades >= 5"
+      select: "1S"
+      description:
+        zh-TW: "11-15 點、五張黑桃（五五時先叫高花）"
+        en: "11-15 HCP, 5+ spades (higher of two five-card suits)"
+
+    - id: "one-heart"
+      priority: 6
+      condition: "hcp >= 11 && hcp <= 15 && hearts >= 5"
+      select: "1H"
+      description:
+        zh-TW: "11-15 點、五張紅心"
+        en: "11-15 HCP, 5+ hearts"
+
+    - id: "two-clubs-natural"
+      priority: 7
+      condition: "hcp >= 11 && hcp <= 15 && clubs >= 6"
+      select: "2C"
+      description:
+        zh-TW: "11-15 點、六張梅花：自然二梅花"
+        en: "11-15 HCP, 6+ clubs: natural 2C"
+
+    - id: "precision-2d"
+      priority: 8
+      condition: "hcp >= 11 && hcp <= 15 && spades == 4 && hearts == 4 && diamonds <= 1"
+      select: "2D"
+      description:
+        zh-TW: "11-15 點、短方塊三小套牌型 (4=4=1=4 / 4=4=0=5)"
+        en: "11-15 HCP, short-diamond three-suiter (4=4=1=4 / 4=4=0=5)"
+
+    - id: "one-diamond-residual"
+      priority: 9
+      condition: "hcp >= 11 && hcp <= 15 && diamonds >= 2"
+      select: "1D"
+      description:
+        zh-TW: "11-15 點、其餘牌型：剩餘叫"
+        en: "11-15 HCP, anything else: residual 1D"
+
+    - id: "pass"
+      priority: 99
+      condition: "true"
+      select: "Pass"
+      description:
+        zh-TW: "不足開叫"
+        en: "Not enough to open"

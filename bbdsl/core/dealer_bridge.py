@@ -86,18 +86,53 @@ def _range_clauses(attr: str, r: Range | None, seat: str) -> list[str]:
     return clauses
 
 
-def constraint_to_dealer(constraint: Any, seat: str = "south") -> str:
+#: HandConstraint fields with no Dealer equivalent. Dropping one silently would
+#: widen the constraint — Dealer would deal hands the BBDSL bid excludes — so
+#: callers are told which fields were lost instead.
+UNSUPPORTED_FIELDS: tuple[str, ...] = (
+    "suit_quality",
+    "stopper_in",
+    "four_card_major",
+    "support_for_partner",
+    "bid_suit",
+    "longest_suit",
+    "second_suit",
+    "conditions",
+)
+
+
+def unsupported_in_dealer(constraint: Any) -> list[str]:
+    """Return the names of constraint fields Dealer syntax cannot express."""
+    if constraint is None:
+        return []
+    return [
+        field
+        for field in UNSUPPORTED_FIELDS
+        if getattr(constraint, field, None) is not None
+    ]
+
+
+def constraint_to_dealer(
+    constraint: Any,
+    seat: str = "south",
+    dropped: list[str] | None = None,
+) -> str:
     """Convert a BBDSL HandConstraint to a Dealer script condition string.
 
     Args:
         constraint: A ``HandConstraint`` instance (or None).
         seat: The Dealer seat name (default ``"south"``).
+        dropped: If given, the names of any fields that could not be expressed
+            in Dealer syntax are appended to this list.
 
     Returns:
         Dealer condition string, or ``""`` if constraint is None / empty.
     """
     if constraint is None:
         return ""
+
+    if dropped is not None:
+        dropped.extend(unsupported_in_dealer(constraint))
 
     parts: list[str] = []
 
@@ -156,6 +191,12 @@ def constraint_to_dealer(constraint: Any, seat: str = "south") -> str:
             parts.append(f"(hcp({seat}) + dist({seat})) >= {tp.min}")
         if tp.max is not None:
             parts.append(f"(hcp({seat}) + dist({seat})) <= {tp.max}")
+
+    # Specific cards → Dealer's native hascard()
+    cards = getattr(constraint, "specific_cards", None)
+    if cards:
+        for card in cards:
+            parts.append(f"hascard({seat}, {card})")
 
     return " && ".join(parts)
 
@@ -283,6 +324,7 @@ def openings_to_dealer_script(
     doc: BBDSLDocument,
     seat: str = "south",
     locale: str = "en",
+    warnings: list[str] | None = None,
 ) -> str:
     """Generate a Dealer script template for all opening bids in *doc*.
 
@@ -293,6 +335,9 @@ def openings_to_dealer_script(
         doc: The BBDSL document.
         seat: Dealer seat name (default ``"south"``).
         locale: Language for the system name header.
+        warnings: If given, one message per opening whose constraint could not
+            be fully expressed in Dealer syntax is appended to this list. Such
+            a Dealer script is *looser* than the BBDSL bid it came from.
 
     Returns:
         A Dealer-format script string.
@@ -312,7 +357,10 @@ def openings_to_dealer_script(
             continue
         meaning = getattr(opening, "meaning", None)
         hand = getattr(meaning, "hand", None) if meaning else None
-        condition = constraint_to_dealer(hand, seat=seat) if hand else ""
+        dropped: list[str] = []
+        condition = (
+            constraint_to_dealer(hand, seat=seat, dropped=dropped) if hand else ""
+        )
 
         # Description comment
         desc = None
@@ -325,6 +373,13 @@ def openings_to_dealer_script(
                     desc = str(desc_val)
 
         lines.append(f"# --- Opening {bid}" + (f": {desc}" if desc else "") + " ---")
+        if dropped:
+            lines.append(
+                f"# WARNING: not expressible in Dealer, dropped: {', '.join(dropped)}"
+            )
+            lines.append("#          this condition is LOOSER than the BBDSL bid.")
+            if warnings is not None:
+                warnings.append(f"{bid}: dropped {', '.join(dropped)}")
         lines.append("generate")
         lines.append("")
         lines.append("condition")

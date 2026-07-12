@@ -27,7 +27,13 @@ from pathlib import Path
 from typing import Any
 
 from bbdsl.core.hand_generator import BridgeHand
-from bbdsl.core.sim_engine import AuctionStep, Deal, SimulationResult, simulate
+from bbdsl.core.sim_engine import (
+    AuctionStep,
+    Deal,
+    SimulationResult,
+    declarer_of,
+    simulate,
+)
 from bbdsl.models.system import BBDSLDocument
 
 
@@ -127,7 +133,14 @@ def result_to_pbn_record(
     deal_str    = _deal_to_pbn_deal(result.deal, dealer=dealer)
     auction_str = _auction_to_pbn(result.auction, dealer=dealer)
     note_str    = _build_note(result.auction, system_name)
-    contract    = result.final_contract or "Pass"
+
+    # PBN keeps the contract and the declarer in separate tags: "2NT by South"
+    # is not a value any PBN reader accepts.
+    declared = declarer_of(result.auction)
+    if declared is None:
+        contract, declarer = "Pass", ""
+    else:
+        contract, declarer = declared
 
     today = datetime.date.today().isoformat().replace("-", ".")
 
@@ -145,6 +158,7 @@ def result_to_pbn_record(
         f'[Vulnerable "{vulnerable}"]',
         f'[Deal "{deal_str}"]',
         f'[Scoring ""]',
+        f'[Declarer "{declarer}"]',
         f'[Contract "{contract}"]',
         f'[Result ""]',
         f'[Auction "{dealer}"]',

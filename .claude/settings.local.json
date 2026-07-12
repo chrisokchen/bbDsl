@@ -5,7 +5,18 @@
       "Bash(uv sync:*)",
       "Bash(uv run:*)",
       "Bash(do echo:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(echo \"import exit=$?\")",
+      "Bash(echo \"validate exit=$?\")",
+      "Bash(uv run *)",
+      "Bash(echo \"validate\\(1err\\) exit=$?\")",
+      "Bash(echo \"validate\\(invalid-fixture\\) exit=$?\")",
+      "Bash(echo \"compare exit=$?\")",
+      "Bash(grep -v \"^bbdsl\\\\\\\\\\\\\\\\\")",
+      "Bash(PYTHONIOENCODING=utf-8 uv run python -)",
+      "Bash(PYTHONIOENCODING=utf-8 python -)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(PYTHONIOENCODING=utf-8 uv run --project D:/0memo/bbDsl python -)"
     ]
   }
 }

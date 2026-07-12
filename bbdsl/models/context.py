@@ -10,7 +10,14 @@ from .common import BidType, I18nString, Range, Seat, Vulnerability
 
 
 class OpponentPattern(BaseModel):
-    """Opponent action pattern — pure data, matching logic in core/opponent_matcher.py (ADR-5)."""
+    """Opponent action pattern — pure data (ADR-5).
+
+    NOT YET CONSUMED. The matching engine (``core/opponent_matcher.py``) is not
+    written, so nothing reads these patterns: ``context_overrides`` is validated
+    for duplicates (val-009) and otherwise ignored by the selector, the
+    simulator and every exporter. Seat / vulnerability / opponent-action
+    modelling is a v0.3 data layer only.
+    """
 
     # Simple forms
     simple: Literal["pass", "double", "any_action", "any_bid"] | None = None

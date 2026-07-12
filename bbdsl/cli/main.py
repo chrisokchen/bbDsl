@@ -93,13 +93,26 @@ def validate(path: Path, rules: str | None, output: Path | None) -> None:
             click.secho(f"  {result.rule_id} {result.rule_name}: {result.message}", fg="yellow")
             for d in result.details:
                 click.secho(f"    {d}", fg="yellow")
+        elif result.skipped:
+            click.secho(
+                f"  {result.rule_id} {result.rule_name}: SKIPPED — {result.message}",
+                fg="cyan",
+            )
         else:
             click.secho(f"  {result.rule_id} {result.rule_name}: PASSED", fg="green")
 
-    passed = sum(1 for r in report.results if r.passed)
     total = len(report.results)
-    click.echo(f"\nSummary: {passed}/{total} passed, "
-               f"{report.warning_count} warning(s), {report.error_count} error(s)")
+    summary = (
+        f"\nSummary: {total} rule(s) run — {report.passed_count} passed, "
+        f"{report.skipped_count} skipped, "
+        f"{report.warning_count} warning(s), {report.error_count} error(s)"
+    )
+    click.echo(summary)
+    if report.skipped_count:
+        click.secho(
+            "  A skipped rule found nothing to check — it is not a guarantee.",
+            fg="cyan",
+        )
 
     if output:
         output.parent.mkdir(parents=True, exist_ok=True)
@@ -345,9 +358,12 @@ def export_dealer_cmd(
     from bbdsl.core.loader import load_document
     from bbdsl.core.dealer_bridge import openings_to_dealer_script
 
+    warnings: list[str] = []
     try:
         doc = load_document(path)
-        script = openings_to_dealer_script(doc, seat=seat, locale=locale)
+        script = openings_to_dealer_script(
+            doc, seat=seat, locale=locale, warnings=warnings
+        )
     except Exception as e:
         raise click.ClickException(str(e)) from e
 
@@ -357,6 +373,14 @@ def export_dealer_cmd(
         output.write_text(script, encoding="utf-8")
         openings_count = len(doc.openings or [])
         click.secho(f"Exported {openings_count} opening(s) as Dealer script → {output}", fg="green")
+    if warnings:
+        click.secho(
+            f"  {len(warnings)} constraint(s) could not be expressed in Dealer "
+            "syntax and were dropped — the script is looser than the system:",
+            fg="yellow",
+        )
+        for w in warnings:
+            click.secho(f"    {w}", fg="yellow")
     else:
         click.echo(script, nl=False)
 

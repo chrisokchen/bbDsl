@@ -92,6 +92,28 @@ ALERT_KEYWORDS = frozenset({'alert', 'alertable'})
 PREEMPTIVE_KEYWORDS = frozenset({'preemptive', 'preempt', 'wk', 'weak two'})
 
 
+def _kw_match(keyword: str, text: str) -> bool:
+    """Whole-word keyword match against already-lowercased *text*.
+
+    Substring matching is wrong here: 'art' occurs inside 'hearts', which
+    would mark every natural heart bid as artificial (and hence alertable).
+    """
+    return re.search(rf'(?<!\w){re.escape(keyword)}(?!\w)', text) is not None
+
+
+def _first_kw(keywords: Any, text: str) -> str | None:
+    """Return the longest matching keyword, or None.
+
+    Longest-first matters because a word boundary sits on the hyphen: a plain
+    ``\\bforcing\\b`` also matches inside 'game-forcing', so the more specific
+    key has to win.
+    """
+    for kw in sorted(keywords, key=len, reverse=True):
+        if _kw_match(kw, text):
+            return kw
+    return None
+
+
 # ---------------------------------------------------------------------------
 # BML tree dataclass
 # ---------------------------------------------------------------------------
@@ -216,37 +238,28 @@ def extract_semantics(description: str) -> dict[str, Any]:
             hand[suit] = {'min': length}
 
     # --- Shape (check longer keywords first to avoid "bal" matching "semi-bal") ---
-    for keyword, ref in sorted(SHAPE_MAP.items(), key=lambda kv: -len(kv[0])):
-        if keyword in desc_lower:
-            if ref:
-                hand['shape'] = {'ref': ref}
-            break
+    shape_kw = _first_kw(SHAPE_MAP, desc_lower)
+    if shape_kw and SHAPE_MAP[shape_kw]:
+        hand['shape'] = {'ref': SHAPE_MAP[shape_kw]}
 
     # --- Forcing ---
-    for keyword, level in FORCING_MAP.items():
-        if keyword in desc_lower:
-            result['forcing'] = level
-            break
+    forcing_kw = _first_kw(FORCING_MAP, desc_lower)
+    if forcing_kw:
+        result['forcing'] = FORCING_MAP[forcing_kw]
 
     # --- Artificial ---
-    for kw in ARTIFICIAL_KEYWORDS:
-        if kw in desc_lower:
-            result['artificial'] = True
-            break
+    if _first_kw(ARTIFICIAL_KEYWORDS, desc_lower):
+        result['artificial'] = True
 
     # --- Alertable ---
-    for kw in ALERT_KEYWORDS:
-        if kw in desc_lower:
-            result['alertable'] = True
-            break
+    if _first_kw(ALERT_KEYWORDS, desc_lower):
+        result['alertable'] = True
     if result.get('artificial') and 'alertable' not in result:
         result['alertable'] = True  # artificial bids default to alertable
 
     # --- Preemptive ---
-    for kw in PREEMPTIVE_KEYWORDS:
-        if kw in desc_lower:
-            result['preemptive'] = True
-            break
+    if _first_kw(PREEMPTIVE_KEYWORDS, desc_lower):
+        result['preemptive'] = True
 
     # --- Resolve status ---
     resolved = bool(hand)

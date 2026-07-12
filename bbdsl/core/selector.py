@@ -19,6 +19,8 @@ Special: shape in <name>  →  shape == "<name>"
 
 from __future__ import annotations
 
+import ast
+import operator
 import re
 from typing import Any
 
@@ -59,15 +61,13 @@ def _transform_condition(condition: str) -> str:
     # Logical NOT: !expr → not expr  (but not !=)
     expr = _NOT_RE.sub(' not ', expr)
 
-    return expr
+    # A leading '!' leaves a leading space, which Python parses as an indent.
+    return expr.strip()
 
 
 # ---------------------------------------------------------------------------
 # Evaluator
 # ---------------------------------------------------------------------------
-
-# Allowed names in eval context — prevents access to builtins
-_SAFE_BUILTINS: dict[str, Any] = {}
 
 # The hand variables that are valid in conditions
 _HAND_VARS = frozenset({
@@ -77,6 +77,78 @@ _HAND_VARS = frozenset({
     'shape',
     'True', 'False',
 })
+
+# ---------------------------------------------------------------------------
+# Safe expression evaluation
+#
+# Conditions are evaluated with an AST whitelist rather than eval(). Emptying
+# __builtins__ is not a sandbox — an attacker can still reach the interpreter
+# through attribute chains like ().__class__.__mro__. That did not matter while
+# conditions only came from local files, but the platform accepts uploaded
+# documents, which makes this input untrusted.
+# ---------------------------------------------------------------------------
+
+_COMPARE_OPS: dict[type, Any] = {
+    ast.Eq: operator.eq,
+    ast.NotEq: operator.ne,
+    ast.Lt: operator.lt,
+    ast.LtE: operator.le,
+    ast.Gt: operator.gt,
+    ast.GtE: operator.ge,
+}
+
+
+def _eval_node(node: ast.AST, ctx: dict[str, Any]) -> Any:
+    """Evaluate a whitelisted AST node against *ctx*."""
+    if isinstance(node, ast.Expression):
+        return _eval_node(node.body, ctx)
+
+    if isinstance(node, ast.Constant):
+        if isinstance(node.value, (int, float, bool, str)) or node.value is None:
+            return node.value
+        raise ValueError(f"unsupported constant: {node.value!r}")
+
+    if isinstance(node, ast.Name):
+        if node.id not in ctx:
+            raise ValueError(f"unknown variable '{node.id}'")
+        return ctx[node.id]
+
+    if isinstance(node, ast.BoolOp):
+        values = [_eval_node(v, ctx) for v in node.values]
+        if isinstance(node.op, ast.And):
+            return all(values)
+        if isinstance(node.op, ast.Or):
+            return any(values)
+        raise ValueError("unsupported boolean operator")
+
+    if isinstance(node, ast.UnaryOp):
+        if isinstance(node.op, ast.Not):
+            return not _eval_node(node.operand, ctx)
+        if isinstance(node.op, ast.USub):
+            return -_eval_node(node.operand, ctx)
+        if isinstance(node.op, ast.UAdd):
+            return +_eval_node(node.operand, ctx)
+        raise ValueError("unsupported unary operator")
+
+    if isinstance(node, ast.Compare):
+        left = _eval_node(node.left, ctx)
+        for op, comparator in zip(node.ops, node.comparators):
+            fn = _COMPARE_OPS.get(type(op))
+            if fn is None:
+                raise ValueError(f"unsupported comparison: {type(op).__name__}")
+            right = _eval_node(comparator, ctx)
+            if not fn(left, right):
+                return False
+            left = right
+        return True
+
+    raise ValueError(f"unsupported expression element: {type(node).__name__}")
+
+
+def _safe_eval(expr: str, ctx: dict[str, Any]) -> Any:
+    """Parse and evaluate *expr* using only whitelisted AST nodes."""
+    tree = ast.parse(expr, mode="eval")
+    return _eval_node(tree, ctx)
 
 
 def evaluate_condition(condition: str, hand: dict[str, Any]) -> bool:
@@ -123,7 +195,7 @@ def evaluate_condition(condition: str, hand: dict[str, Any]) -> bool:
         ctx['second_suit'] = sorted_lengths[1] if len(sorted_lengths) > 1 else 0
 
     try:
-        result = eval(python_expr, {'__builtins__': _SAFE_BUILTINS}, ctx)  # noqa: S307
+        result = _safe_eval(python_expr, ctx)
     except Exception as exc:
         raise ValueError(
             f"Invalid condition expression '{condition}': {exc}"

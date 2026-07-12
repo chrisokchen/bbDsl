@@ -103,7 +103,10 @@ openings:
 - **叫品語義**：forcing level、人工/自然、轉換叫、示叫、alertable
 - **Dealer 相容**：`hand constraint` 語法對應 Dealer script 函數 (hcp, shape, losers, top, hascard...)
 
-### 情境感知
+### 情境感知（🔲 資料層已定義，引擎尚未實作）
+
+> ⚠️ 以下三項目前是 **schema 可驗證的資料層**：你可以寫、可以通過驗證，但
+> 選擇引擎、模擬器與匯出器**都還不會讀取它們**（`core/opponent_matcher.py` 未實作）。
 
 - **座位**：1st / 2nd / 3rd / 4th 不同開叫策略
 - **身價**：None / Favorable / Unfavorable / Both 調整叫牌激進度
@@ -142,21 +145,25 @@ Schema + MVP         實戰價值               視覺化 + 教學          AI �
 ─────────────────────────────────────────────────────────────────────────────────────────────────
 Pydantic 模型        BBOalert 匯出/匯入     HTML 互動 Viewer      AI KB 匯出            Convention Registry
 foreach_suit 展開器  BML 匯出              Convention Card 產生   Dealer 雙向轉換        線上編輯器
-驗證器 (8 規則)      選擇引擎               SVG 叫牌樹            模擬對練引擎           Diff / Merge
+驗證器 (14 規則)     選擇引擎               SVG 叫牌樹            模擬對練引擎           Diff / Merge
 BML 匯入 MVP         SAYC + 2/1 GF 範例    練習題產生器           制度比較器             社群評分
 精準制範例            完整 14 條驗證規則      教學模式              PBN 匯出              LIN 整合
 ```
 
-**技術基礎**：Python 3.11+、Pydantic v2、ruamel.yaml、Click CLI、pytest + hypothesis、uv 套件管理
+**技術基礎**：Python 3.11+、Pydantic v2、ruamel.yaml、Click CLI、pytest、uv 套件管理
 
 ## 專案結構
 
 ```
-bbdsl/
+.
+├── bbdsl/                        # Python 套件（models / core / importers / exporters / cli）
+├── examples/                     # 三套完整制度範例（precision / sayc / two_over_one）
+├── tests/                        # pytest 測試套件
 ├── BBDSL-SPEC-v0.3.md            # 核心規格書
 ├── BBDSL-SUPPLEMENT-v0.3.md      # 設計補充
 ├── BBDSL_IMPLEMENTATION-PLAN.md  # 實作計畫
 ├── bbdsl-schema-v0.3.json        # JSON Schema
+├── bbdsl-platform/               # Phase 5 社群平台（開發中）
 ├── process/
 │   └── 1-discover/               # 探索階段產出（競品分析、調查報告、範例 YAML）
 └── prompts/                      # AI 輔助工作流程提示詞
@@ -164,14 +171,18 @@ bbdsl/
 
 ## 範例制度
 
-- **SAYC** (Standard American Yellow Card)：[process/1-discover/sayc.bbdsl.yaml](process/1-discover/sayc.bbdsl.yaml)
+三套制度皆通過全部驗證規則，並含 `selection_rules` 開叫選擇順序：
+
+- **精準制** (Precision Club)：[examples/precision.bbdsl.yaml](examples/precision.bbdsl.yaml)
+- **SAYC** (Standard American Yellow Card)：[examples/sayc.bbdsl.yaml](examples/sayc.bbdsl.yaml)
+- **2/1 GF** (Two-over-One Game Force)：[examples/two_over_one.bbdsl.yaml](examples/two_over_one.bbdsl.yaml)
 
 ## 設計原則
 
 1. **模組化** — Convention 獨立定義，支援 namespace、版本化、參數化
 2. **繼承性** — 制度 `base` 繼承 + 節點 `context_overrides` 差異化表達
 3. **可驗證性** — 14 條規則涵蓋結構、引用、語義、情境一致性
-4. **情境感知** — 座位、身價、對手行為完整建模
+4. **情境感知** — 座位、身價、對手行為的資料模型（引擎支援待實作）
 5. **對稱語法糖** — `foreach_suit` 寫時展開，減少重複定義
 6. **生態相容** — Dealer 語法相容、BML/BBOalert 雙向匯入匯出
 7. **漸進式定義** — `completeness` 欄位支援從草稿逐步精煉至完整
@@ -182,4 +193,4 @@ bbdsl/
 本專案採用**雙軌授權**（詳見 [LICENSING.md](LICENSING.md)）：
 
 - **程式碼**：[MIT License](LICENSE)
-- **叫牌特約檔案**（`registry/`、`examples/conventions/`）：[CC-BY-SA-4.0](LICENSE-CC-BY-SA-4.0)
+- **叫牌制度／特約檔案**（`examples/*.bbdsl.yaml`，未來的 `registry/`）：[CC-BY-SA-4.0](LICENSE-CC-BY-SA-4.0)

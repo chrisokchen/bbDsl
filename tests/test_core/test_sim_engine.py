@@ -303,13 +303,27 @@ class TestSelectBid:
         meaning = BidMeaning(hand=hc) if hc else None
         return BidNode(bid=bid, meaning=meaning)
 
-    def test_matches_first_valid_candidate(self):
+    def test_more_specific_candidate_wins_over_declaration_order(self):
+        # Declaration order is not a bid-selection rule. 1C (16+, open-ended)
+        # is listed first but 1NT (15-17) describes this hand far more tightly,
+        # so the loose bid must not swallow it.
         candidates = [
             self._make_node("1C", hcp_min=16),
             self._make_node("1NT", hcp_min=15, hcp_max=17),
         ]
         hand = BridgeHand(spades=[], hearts=[], diamonds=[], clubs=[], hcp=16)
-        bid, reasoning = _select_bid(hand, candidates)
+        bid, _ = _select_bid(hand, candidates)
+        assert bid == "1NT"
+
+    def test_explicit_priority_beats_specificity(self):
+        candidates = [
+            self._make_node("1C", hcp_min=16),
+            self._make_node("1NT", hcp_min=15, hcp_max=17),
+        ]
+        candidates[0].priority = 1     # the document says: try 1C first
+        candidates[1].priority = 2
+        hand = BridgeHand(spades=[], hearts=[], diamonds=[], clubs=[], hcp=16)
+        bid, _ = _select_bid(hand, candidates)
         assert bid == "1C"
 
     def test_skips_non_matching_returns_next(self):
@@ -577,3 +591,78 @@ class TestToDict:
             assert "bid" in step_dict
             assert "by" in step_dict
             assert "reasoning" in step_dict
+
+
+# ---------------------------------------------------------------------------
+# Review findings F-1 / F-7 / F-8: the auction must be bridge-legal, every
+# declared opening must be reachable, and declarer must follow the Laws.
+# ---------------------------------------------------------------------------
+
+_EXAMPLES = ["precision.bbdsl.yaml", "sayc.bbdsl.yaml", "two_over_one.bbdsl.yaml"]
+
+_BID_ORDER = {
+    f"{level}{strain}": i
+    for i, (level, strain) in enumerate(
+        (lv, st) for lv in range(1, 8) for st in ["C", "D", "H", "S", "NT"]
+    )
+}
+
+
+class TestAuctionIsBridgeLegal:
+
+    @pytest.mark.parametrize("example", _EXAMPLES)
+    def test_every_declared_opening_is_reachable(self, examples_dir, example):
+        """No opening may be dead code.
+
+        The loosest opening is usually written first, so a plain first-match
+        scan let 1C swallow every hand and 1NT / 1H / 1S were never bid at all.
+        """
+        from bbdsl.core.sim_engine import simulate
+
+        doc = load_document(examples_dir / example)
+        results = simulate(doc, n_deals=500, seed=1)
+        opened = {
+            next((s.bid for s in r.auction if s.bid != "Pass"), None)
+            for r in results
+        }
+        dead = [o.bid for o in doc.openings if o.bid not in opened]
+        assert not dead, f"{example}: openings never bid in 500 deals: {dead}"
+
+    @pytest.mark.parametrize("example", _EXAMPLES)
+    def test_no_insufficient_bids(self, examples_dir, example):
+        """Each bid must outrank the previous one — including against opponents."""
+        from bbdsl.core.sim_engine import simulate
+
+        ns = load_document(examples_dir / example)
+        ew = load_document(examples_dir / "sayc.bbdsl.yaml")
+        for result in simulate(ns, n_deals=100, ew_doc=ew, seed=7):
+            highest = -1
+            for step in result.auction:
+                if step.bid == "Pass":
+                    continue
+                rank = _BID_ORDER.get(step.bid)
+                assert rank is not None, f"unrankable call {step.bid}"
+                assert rank > highest, (
+                    f"insufficient bid {step.bid} by {step.seat} in "
+                    f"{[s.bid for s in result.auction]}"
+                )
+                highest = rank
+
+    def test_declarer_is_first_to_name_the_strain(self, examples_dir):
+        """Declarer is not simply whoever bid last (Law 54)."""
+        from bbdsl.core.sim_engine import declarer_of, simulate
+
+        ns = load_document(examples_dir / "precision.bbdsl.yaml")
+        ew = load_document(examples_dir / "sayc.bbdsl.yaml")
+        for result in simulate(ns, n_deals=200, ew_doc=ew, seed=11):
+            declared = declarer_of(result.auction)
+            if declared is None:
+                continue
+            final_bid, declarer = declared
+            calls = [(s.seat, s.bid) for s in result.auction if s.bid != "Pass"]
+            side = ("N", "S") if calls[-1][0] in ("N", "S") else ("E", "W")
+            expected = next(
+                seat for seat, bid in calls
+                if seat in side and bid[1:] == final_bid[1:]
+            )
+            assert declarer == expected

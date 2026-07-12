@@ -32,11 +32,14 @@ class TestVal002NoOverlap:
         assert r.passed is True
 
     def test_overlap_detected(self, fixtures_dir):
+        # An overlap with no declared tie-break (no selection_rules, no
+        # priority) is reported: the engine still resolves it by specificity,
+        # but the document never said which bid was meant to win.
         doc = load_document(fixtures_dir / "invalid" / "overlap-hcp.yaml")
         v = Validator(doc)
         r = v._check_val_002()
         assert r.passed is False
-        assert r.severity == "error"
+        assert r.severity == "warning"
         assert len(r.details) >= 1
 
     def test_no_overlap_different_suits(self, fixtures_dir):
@@ -191,13 +194,22 @@ class TestVal013PriorityUnique:
 
 
 class TestVal014SelectionRulesExhaustive:
-    def test_no_selection_rules_passes(self, examples_dir):
-        doc = load_document(examples_dir / "precision.bbdsl.yaml")
+    def test_no_selection_rules_is_skipped_not_passed(self, fixtures_dir):
+        # A document with no selection_rules cannot violate the rule, but it
+        # was never checked either — reporting that as a pass advertises a
+        # guarantee nobody verified.
+        doc = load_document(fixtures_dir / "valid" / "minimal.yaml")
         v = Validator(doc)
         r = v._check_val_014()
         assert r.rule_id == "val-014"
+        assert r.skipped is True
+        assert "not checked" in r.message
+
+    def test_example_selection_rules_really_checked(self, examples_dir):
+        doc = load_document(examples_dir / "precision.bbdsl.yaml")
+        r = Validator(doc)._check_val_014()
         assert r.passed is True
-        assert "skipped" in r.message
+        assert r.skipped is False
 
     def test_with_catchall_passes(self, fixtures_dir):
         doc = load_document(fixtures_dir / "valid" / "with-selection-rules.yaml")
