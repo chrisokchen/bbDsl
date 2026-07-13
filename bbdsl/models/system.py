@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from .bid import BidNode
 from .common import Author, Completeness, I18nString, Range
@@ -15,6 +15,7 @@ class StrengthMethodDef(BaseModel):
 
     description: I18nString | None = None
     range: list[int] | None = None  # [min, max]
+    model_config = ConfigDict(extra="forbid")
 
 
 class PatternDef(BaseModel):
@@ -24,6 +25,7 @@ class PatternDef(BaseModel):
     shapes: list[str] | None = None  # generic: ["4-3-3-3", "4-4-3-2"]
     shapes_exact: list[str] | None = None  # exact: ["4=4=1=4"]
     constraints: dict | None = None
+    model_config = ConfigDict(extra="forbid")
 
 
 class SuitQualityDef(BaseModel):
@@ -33,6 +35,7 @@ class SuitQualityDef(BaseModel):
     top3_honors: Range | None = None
     top5_honors: Range | None = None
     min_length: int | None = None
+    model_config = ConfigDict(extra="forbid")
 
 
 class Definitions(BaseModel):
@@ -45,7 +48,7 @@ class Definitions(BaseModel):
     dealer_functions: dict | None = None
     bid_semantics: dict | None = None
 
-    model_config = {"extra": "allow"}
+    model_config = ConfigDict(extra="forbid")
 
 
 class SystemMetadata(BaseModel):
@@ -59,6 +62,7 @@ class SystemMetadata(BaseModel):
     locale: str | None = None
     license: str | None = None
     completeness: Completeness | None = None
+    model_config = ConfigDict(extra="forbid")
 
 
 class DefensiveEntry(BaseModel):
@@ -68,7 +72,7 @@ class DefensiveEntry(BaseModel):
     actions: list[BidNode] | dict | None = None
     convention_ref: str | None = None
 
-    model_config = {"extra": "allow"}
+    model_config = ConfigDict(extra="forbid")
 
 
 class DefenseToEntry(BaseModel):
@@ -79,6 +83,7 @@ class DefenseToEntry(BaseModel):
     when_opponent_opens: dict | None = None
     actions: list[BidNode] | None = None
     convention_ref: str | None = None
+    model_config = ConfigDict(strict=True, extra="forbid")
 
 
 class ValidationConfig(BaseModel):
@@ -86,7 +91,7 @@ class ValidationConfig(BaseModel):
 
     rules: list[dict] | None = None
 
-    model_config = {"extra": "allow"}
+    model_config = ConfigDict(strict=True, extra="forbid")
 
 
 class ExportConfig(BaseModel):
@@ -98,7 +103,7 @@ class ExportConfig(BaseModel):
     pbn: dict | None = None
     ai_knowledge_base: dict | None = None
 
-    model_config = {"extra": "allow"}
+    model_config = ConfigDict(strict=True, extra="forbid")
 
 
 class ImportConfig(BaseModel):
@@ -107,7 +112,7 @@ class ImportConfig(BaseModel):
     bml: dict | None = None
     bboalert: dict | None = None
 
-    model_config = {"extra": "allow"}
+    model_config = ConfigDict(strict=True, extra="forbid")
 
 
 class BBDSLDocument(BaseModel):
@@ -126,4 +131,4 @@ class BBDSLDocument(BaseModel):
     export: ExportConfig | None = None
     import_: ImportConfig | None = Field(None, alias="import")
 
-    model_config = {"populate_by_name": True}
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)

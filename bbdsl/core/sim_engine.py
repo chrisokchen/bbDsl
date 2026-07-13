@@ -31,18 +31,22 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from bbdsl.core.hand_generator import (
+    _RANK_IDX,
     RANKS,
     SUITS,
     BridgeHand,
-    _RANK_IDX,
     _calc_hcp,
     _check_controls,
+    _check_four_card_major,
     _check_hcp,
+    _check_losing_tricks,
     _check_shape,
+    _check_specific_cards,
+    _check_stopper_in,
     _check_suit,
+    _check_total_points,
 )
 from bbdsl.models.system import BBDSLDocument
-
 
 # ---------------------------------------------------------------------------
 # Data structures
@@ -160,7 +164,11 @@ def generate_deal(seed: int | None = None) -> Deal:
 # Constraint matching
 # ---------------------------------------------------------------------------
 
-def _matches_constraint(hand: BridgeHand, constraint: Any) -> bool:
+def _matches_constraint(
+    hand: BridgeHand,
+    constraint: Any,
+    shape_patterns: dict[str, Any] | None = None,
+) -> bool:
     """Check whether *hand* satisfies *constraint*.
 
     Args:
@@ -182,13 +190,23 @@ def _matches_constraint(hand: BridgeHand, constraint: Any) -> bool:
 
     if not _check_hcp(hand.hcp, constraint):
         return False
-    if not _check_shape(by_suit, constraint):
+    if not _check_shape(by_suit, constraint, shape_patterns=shape_patterns):
         return False
     for suit in SUITS:
         r = getattr(constraint, suit, None)
         if not _check_suit(by_suit[suit], r):
             return False
     if not _check_controls(by_suit, constraint):
+        return False
+    if not _check_losing_tricks(by_suit, constraint):
+        return False
+    if not _check_total_points(by_suit, constraint):
+        return False
+    if not _check_specific_cards(by_suit, constraint):
+        return False
+    if not _check_stopper_in(by_suit, constraint):
+        return False
+    if not _check_four_card_major(by_suit, constraint):
         return False
     return True
 
@@ -399,6 +417,7 @@ def _select_bid(
     hand: BridgeHand,
     candidates: list[Any],
     selection_rules: dict | None = None,
+    shape_patterns: dict[str, Any] | None = None,
 ) -> tuple[str, str]:
     """Select the bid this hand should make from *candidates*.
 
@@ -433,7 +452,7 @@ def _select_bid(
             continue
         meaning = getattr(node, "meaning", None)
         constraint = getattr(meaning, "hand", None) if meaning else None
-        if _matches_constraint(hand, constraint):
+        if _matches_constraint(hand, constraint, shape_patterns=shape_patterns):
             if constraint is None:
                 reasoning = f"No constraint (any hand) → {bid}"
             else:
@@ -554,12 +573,10 @@ def simulate_deal(
     # Assign opener/responder roles: whichever N/S seat bids first is opener
     dealer_idx = _SEAT_ORDER.index(dealer)
     ns_opener = "N"
-    ns_responder = "S"
     for i in range(4):
         s = _SEAT_ORDER[(dealer_idx + i) % 4]
         if s in ("N", "S"):
             ns_opener = s
-            ns_responder = "S" if ns_opener == "N" else "N"
             break
 
     auction: list[AuctionStep] = []
@@ -568,6 +585,10 @@ def simulate_deal(
     consecutive_passes = 0
     any_non_pass = False
     highest_bid: str | None = None
+    ns_shape_patterns = ns_doc.definitions.patterns if ns_doc.definitions else None
+    ew_shape_patterns = (
+        ew_doc.definitions.patterns if ew_doc and ew_doc.definitions else None
+    )
 
     for step_num in range(40):
         seat = _SEAT_ORDER[(dealer_idx + step_num) % 4]
@@ -579,7 +600,12 @@ def simulate_deal(
             candidates = _get_candidates(current, ns_doc)
             # selection_rules describe opening choice only
             rules = ns_doc.selection_rules if current is None else None
-            bid, reasoning = _select_bid(hand, candidates, rules)
+            bid, reasoning = _select_bid(
+                hand,
+                candidates,
+                rules,
+                shape_patterns=ns_shape_patterns,
+            )
             by = "opener" if seat == ns_opener else "responder"
         else:
             if ew_doc is None:
@@ -589,7 +615,12 @@ def simulate_deal(
                 current = _navigate_tree(ew_doc, ew_path)
                 candidates = _get_candidates(current, ew_doc)
                 rules = ew_doc.selection_rules if current is None else None
-                bid, reasoning = _select_bid(hand, candidates, rules)
+                bid, reasoning = _select_bid(
+                    hand,
+                    candidates,
+                    rules,
+                    shape_patterns=ew_shape_patterns,
+                )
             by = "opponent"
 
         # An insufficient bid is not a legal call: both sides bid into one

@@ -1,21 +1,16 @@
 """Tests for bbdsl.core.hand_generator."""
 
-import pytest
 
 from bbdsl.core.hand_generator import (
-    BridgeHand,
     RANKS,
     SUITS,
-    HCP_VALUES,
+    BridgeHand,
+    _calc_hcp,
     generate_hand,
     generate_unconstrained_hand,
-    _calc_hcp,
-    _check_hcp,
-    _check_shape,
 )
 from bbdsl.models.bid import HandConstraint
 from bbdsl.models.common import Range
-
 
 # ---------------------------------------------------------------------------
 # BridgeHand dataclass
@@ -39,14 +34,24 @@ class TestBridgeHand:
         assert total == 13
 
     def test_suit_lengths_property(self):
-        hand = self._hand(s=["A", "K", "Q"], h=["J", "T"], d=["9", "8", "7", "6", "5"], c=["4", "3"])
+        hand = self._hand(
+            s=["A", "K", "Q"],
+            h=["J", "T"],
+            d=["9", "8", "7", "6", "5"],
+            c=["4", "3"],
+        )
         assert hand.suit_lengths["spades"] == 3
         assert hand.suit_lengths["hearts"] == 2
         assert hand.suit_lengths["diamonds"] == 5
         assert hand.suit_lengths["clubs"] == 2
 
     def test_shape_pattern_sorted(self):
-        hand = self._hand(s=["A", "K", "Q"], h=["J", "T"], d=["9", "8", "7", "6", "5"], c=["4", "3"])
+        hand = self._hand(
+            s=["A", "K", "Q"],
+            h=["J", "T"],
+            d=["9", "8", "7", "6", "5"],
+            c=["4", "3"],
+        )
         assert hand.shape_pattern == (5, 3, 2, 2) or hand.shape_pattern[0] >= hand.shape_pattern[-1]
         assert sorted(hand.shape_pattern, reverse=True) == list(hand.shape_pattern)
 
@@ -242,7 +247,6 @@ class TestGenerateWithSuits:
 
 class TestGenerateWithShape:
     def test_balanced_shape(self):
-        from bbdsl.core.hand_generator import _BALANCED_PATTERNS
         for seed in range(5):
             hc = HandConstraint(
                 hcp=Range(min=15, max=17),
@@ -253,11 +257,36 @@ class TestGenerateWithShape:
             assert hand.is_balanced, f"Pattern {hand.shape_pattern} is not balanced"
 
     def test_semi_balanced_shape(self):
-        from bbdsl.core.hand_generator import _SEMI_BAL_PATTERNS
         for seed in range(5):
             hc = HandConstraint(shape={"ref": "semi_balanced"})
             hand = generate_hand(hc, seed=seed * 456)
             assert hand.is_semi_balanced, f"Pattern {hand.shape_pattern} not semi-balanced"
+
+    def test_precision_2d_exact_shape(self):
+        hc = HandConstraint(shape={"ref": "precision_2d"})
+        shapes = set()
+        for seed in range(10):
+            hand = generate_hand(hc, seed=seed * 101)
+            ordered = (len(hand.spades), len(hand.hearts), len(hand.diamonds), len(hand.clubs))
+            shapes.add(ordered)
+            assert ordered in {(4, 4, 1, 4), (4, 4, 0, 5)}
+        assert shapes
+
+    def test_specific_cards(self):
+        hc = HandConstraint(specific_cards=["AS", "KH"])
+        hand = generate_hand(hc, seed=42)
+        assert "A" in hand.spades
+        assert "K" in hand.hearts
+
+    def test_stopper_in(self):
+        hc = HandConstraint(stopper_in="diamonds")
+        hand = generate_hand(hc, seed=7)
+        diamonds = hand.diamonds
+        assert (
+            "A" in diamonds
+            or ("K" in diamonds and len(diamonds) >= 2)
+            or ("Q" in diamonds and len(diamonds) >= 3)
+        )
 
 
 # ---------------------------------------------------------------------------

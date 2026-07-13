@@ -1,7 +1,11 @@
 """Tests for bbdsl.core.quiz_generator."""
 
+import random
+
 import pytest
 
+from bbdsl.core.hand_generator import BridgeHand
+from bbdsl.core.loader import load_document
 from bbdsl.core.quiz_generator import (
     QuizQuestion,
     _get_distractors,
@@ -11,10 +15,7 @@ from bbdsl.core.quiz_generator import (
     generate_quiz,
     generate_response_questions,
 )
-from bbdsl.core.hand_generator import BridgeHand
-from bbdsl.core.loader import load_document
-
-import random
+from bbdsl.core.sim_engine import _select_bid
 
 # ---------------------------------------------------------------------------
 # Helpers / fixtures
@@ -230,6 +231,21 @@ class TestGenerateOpeningQuestions:
         qs = generate_opening_questions(sayc_doc, seed=42)
         assert isinstance(qs, list)
 
+    def test_oracle_matches_generated_opening(self, precision_doc):
+        qs = generate_opening_questions(precision_doc, seed=42)
+        for q in qs:
+            selected, _ = _select_bid(
+                q.hand,
+                list(precision_doc.openings),
+                precision_doc.selection_rules,
+                shape_patterns=(
+                    precision_doc.definitions.patterns
+                    if precision_doc.definitions
+                    else None
+                ),
+            )
+            assert selected == q.correct_bid
+
 
 # ---------------------------------------------------------------------------
 # generate_response_questions
@@ -281,6 +297,22 @@ class TestGenerateResponseQuestions:
         qs1 = generate_response_questions(precision_doc, seed=99)
         qs2 = generate_response_questions(precision_doc, seed=99)
         assert len(qs1) == len(qs2)
+
+    def test_oracle_matches_generated_response(self, precision_doc):
+        qs = generate_response_questions(precision_doc, seed=42)
+        for q in qs:
+            opening = next(o for o in precision_doc.openings if o.bid == q.sequence[0])
+            selected, _ = _select_bid(
+                q.hand,
+                opening.responses or [],
+                None,
+                shape_patterns=(
+                    precision_doc.definitions.patterns
+                    if precision_doc.definitions
+                    else None
+                ),
+            )
+            assert selected == q.correct_bid
 
 
 # ---------------------------------------------------------------------------

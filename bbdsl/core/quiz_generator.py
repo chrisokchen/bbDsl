@@ -22,12 +22,12 @@ Example::
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from bbdsl.core.hand_generator import BridgeHand, generate_hand
+from bbdsl.core.sim_engine import _select_bid
 from bbdsl.models.system import BBDSLDocument
-
 
 # ---------------------------------------------------------------------------
 # i18n helper (same pattern as other modules)
@@ -182,9 +182,19 @@ def generate_opening_questions(
                     meaning.hand,
                     seed=rng.randint(0, 999_999),
                     max_attempts=max_attempts_per_q,
+                    shape_patterns=doc.definitions.patterns if doc.definitions else None,
                 )
             except ValueError:
                 continue  # skip this opening if hand generation fails
+
+            selected, _ = _select_bid(
+                hand,
+                list(openings),
+                doc.selection_rules,
+                shape_patterns=doc.definitions.patterns if doc.definitions else None,
+            )
+            if selected != bid:
+                continue
 
             # Build question
             desc = _t(meaning.description, locale)
@@ -271,14 +281,23 @@ def generate_response_questions(
                         meaning.hand,
                         seed=rng.randint(0, 999_999),
                         max_attempts=max_attempts_per_q,
+                        shape_patterns=doc.definitions.patterns if doc.definitions else None,
                     )
                 except ValueError:
+                    continue
+
+                selected, _ = _select_bid(
+                    hand,
+                    responses,
+                    None,
+                    shape_patterns=doc.definitions.patterns if doc.definitions else None,
+                )
+                if selected != resp_bid:
                     continue
 
                 desc = _t(meaning.description, locale)
                 summary = _hand_summary(meaning.hand, locale)
                 explanation = f"{resp_bid}: {desc or summary}"
-                hint = desc[:50] if desc else summary[:50]
 
                 distractors = _get_distractors(resp_bid, all_resp_bids, rng, n=3)
                 choices = [resp_bid] + distractors

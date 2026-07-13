@@ -1,8 +1,14 @@
 """Tests for bbdsl.core.loader."""
 
 import pytest
+from pydantic import ValidationError
 
-from bbdsl.core.loader import generate_json_schema, load_document, load_yaml
+from bbdsl.core.loader import (
+    generate_json_schema,
+    load_document,
+    load_document_from_string,
+    load_yaml,
+)
 
 
 class TestLoadYaml:
@@ -55,6 +61,35 @@ class TestLoadDocument:
         open_1nt = next(o for o in doc.openings if o.bid == "1NT")
         assert open_1nt.conventions_applied is not None
         assert open_1nt.meaning.hand.shape == {"ref": "balanced"}
+
+    def test_rejects_unknown_top_level_keys(self):
+        with pytest.raises(ValidationError):
+            load_document_from_string(
+                """
+bbdsl: "0.3"
+system:
+  name: Test
+unknown_top: true
+openings:
+  - bid: 1C
+"""
+            )
+
+    def test_rejects_string_coercion(self):
+        with pytest.raises(ValidationError):
+            load_document_from_string(
+                """
+bbdsl: "0.3"
+system:
+  name: Test
+openings:
+  - bid: 1C
+    meaning:
+      hand:
+        hcp:
+          min: "12"
+"""
+            )
 
 
 class TestGenerateJsonSchema:

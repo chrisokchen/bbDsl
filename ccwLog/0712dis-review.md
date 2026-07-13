@@ -106,3 +106,69 @@
 # | codexGpt56sol :-
 
 請依 ccwLog\reviewPreamble.md 的章程，審查此 repo，並產出一份完整的審查報告，寫在 ccwLog\0712review-report_codexGpt56sol.md。
+
+• 我會先完整讀取 ccwLog\reviewPreamble.md，再依章程盤點程式碼、設定、測試與既有文件；審查結果會附可追溯證據與優先級，最後寫入指定報告檔並做一次一致性檢查。
+
+• Updated Plan
+  └ □ 讀取審查章程與 repository 指引，界定範圍與報告格式
+    □ 盤點專案結構、版本狀態、主要程式碼與測試
+    □ 執行適當的靜態檢查與測試，驗證審查發現
+    □ 撰寫完整審查報告至指定路徑
+    □ 複核報告證據、檔案連結與結論
+• 第一個可重現差異已出現：章程要求的 uv run pytest tests/ 在此環境直接失敗，因 uv 不在 PATH。這會在報告中區分為「審查環境／可重現性」問題；我接著會定位專案可用的 Python/uv，再以等價方式完成測試，不把工具缺失誤判成程式失敗。
+• 測試現已完成：908 passed in 38.89s，總覆蓋率 85%，與目前 CLAUDE.md 一致；高風險缺口仍集中在 CLI（46%）、registry client（44%）與 loader（52%）。我接著會執行三套範例驗證、模擬／PBN／匯入抽樣，並確認先前修正是否真的封住問題。
+  集前即失敗。這不是測試紅燈，而是平台與核心套件缺少可解析的 workspace/path 綁定；我會將它列為平台可重現性與版本耦合缺陷。
+  
+• 核心結果：
+
+  - 實測 908 passed、85% coverage。
+  - 發現 2 項 Critical：模擬器不履行 forcing 義務，以及 Quiz 約 14%–24% 題目答案錯標。
+  - 多種 HandConstraint 與自訂 shape 會被靜默忽略。
+  - JSON Schema、Pydantic 模型與實際 loader 契約明顯漂移。
+  - SAYC 範例混入 2/1 GF 語義。
+  - Phase 5 後端依賴無法解析，前端缺 lockfile，並有 OAuth、JWT 與 DoS 防護缺口。
+  - 報告包含 Claims Audit、D1–D6 發現、三套制度逐叫品抽查、BCC 理論評估、互通損耗矩陣及十項優先行動。
+
+  既有的 ccwLog/0712dis-review.md 修改未被碰觸。
+
+─ Worked for 31m 22s ──────────────────────────
+
+# > 依 ccwLog\0712review-report_codexGpt56sol.md 的結論與建議，逐項修正，並把過程與結果、碰到的問題、建議都寫在 ccwLog\0712log-reviewFix_codexGpt56sol.md。
+
+• 我已把本次新增的 lint 噪音收掉。再跑一次針對改動檔案的 ruff，確認只剩真正的產品問題，而不是我修正時留下的格式殘渣。
+• 我想確認一下到底是「真的沒裝到」還是「測試進程沒吃到同一個環境」。先用同一個 uv run 環境直接 import aiosqlite。
+• backend 也收斂了：8/8 通過。現在我整理最終變更清單，然後把修正過程、結果、問題與殘留項目寫進 reviewFix 紀錄。
+• 我開始寫修正紀錄。內容會對齊你要的三件事：我做了什麼、結果是什麼、過程中踩到什麼坑，以及後續建議。
+• 修正紀錄已寫好，現在把整個任務收尾：程式修正、回歸驗證、紀錄文件都完成。
+
+• Updated Plan
+  └ ✔ 盤點報告對應的可修正程式落點
+    ✔ 修正模型/載入層的嚴格驗證與未知欄位處理
+    ✔ 修正手牌生成、約束比對、模擬終止與 forcing 行為
+    ✔ 補上回歸測試並跑驗證
+    ✔ 撰寫 reviewFix 紀錄文件
+
+• 已完成修正，紀錄也寫進了 /D:/0memo/bbDsl/ccwLog/0712log-reviewFix_codexGpt56sol.md。
+
+  這次主要修了幾個會直接影響行為的點：
+
+  - 模型與載入層改成拒絕未知欄位，並保留 Range 的數值嚴格性。
+  - 手牌生成器補上 precision_2d exact shape、specific_cards、stopper_in、losing_tricks、
+    total_points 等約束。
+
+  - 模擬器與 quiz 產生器對齊同一套 oracle，避免題目答案與實際選叫不一致。
+  - bbdsl-platform/backend 改成吃 workspace 內的本地 bbdsl，並補齊 hatch/venv 設定。
+
+  驗證結果：
+
+  - uv run pytest tests/：916 passed
+  - uv run ruff check ...：通過
+  - cd bbdsl-platform/backend && uv sync --extra dev
+  - cd bbdsl-platform/backend && uv run python -m pytest：8 passed
+
+  保留的事項也已在修正紀錄內寫明，主要是 BCC 理論章節與部分更細的 constraint algebra，這輪先
+  處理了可直接驗證的程式與平台問題。
+
+─ Worked for 57m 35s ─----------------
+
+

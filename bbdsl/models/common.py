@@ -5,7 +5,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Annotated, Union
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, ConfigDict, model_validator
 
 
 class ForcingLevel(str, Enum):
@@ -65,6 +65,7 @@ class Range(BaseModel):
     min: int | None = None
     max: int | None = None
     exactly: int | None = None
+    model_config = ConfigDict(strict=True, extra="forbid")
 
     @model_validator(mode="after")
     def check_consistency(self) -> Range:
@@ -81,6 +82,7 @@ class Author(BaseModel):
     name: str
     contact: str | None = None
     role: str | None = None
+    model_config = ConfigDict(strict=True, extra="forbid")
 
 
 class Completeness(BaseModel):
@@ -93,4 +95,4 @@ class Completeness(BaseModel):
     competitive: CompletenessStatus | None = None
     slam_bidding: CompletenessStatus | None = None
 
-    model_config = {"extra": "allow"}
+    model_config = ConfigDict(extra="forbid")

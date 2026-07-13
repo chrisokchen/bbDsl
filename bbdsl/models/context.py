@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from .common import BidType, I18nString, Range, Seat, Vulnerability
 
@@ -33,7 +33,7 @@ class OpponentPattern(BaseModel):
     all_of: list[OpponentPattern] | None = None
     not_: OpponentPattern | None = Field(None, alias="not")
 
-    model_config = {"populate_by_name": True}
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
 
 class Context(BaseModel):
@@ -44,6 +44,7 @@ class Context(BaseModel):
     opponent_action: Union[str, OpponentPattern] | None = None
     precondition: str | None = None
     description: I18nString | None = None
+    model_config = ConfigDict(extra="forbid")
 
 
 class ContextOverride(BaseModel):
@@ -51,3 +52,4 @@ class ContextOverride(BaseModel):
 
     context: Union[Context, dict] = ...  # dict for {"ref": "context_name"}
     meaning: dict | None = None  # BidMeaning as dict to avoid circular import
+    model_config = ConfigDict(extra="forbid")

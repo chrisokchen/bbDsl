@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any, Literal
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from .bid import BidMeaning, BidNode, ForeachSuit, HandConstraint
 from .common import I18nString
@@ -19,6 +19,7 @@ class ConventionParameter(BaseModel):
     type: Literal["bid", "boolean", "integer", "string", "suit"]
     default: Any = None
     description: I18nString | None = None
+    model_config = ConfigDict(extra="forbid")
 
 
 class ConventionTrigger(BaseModel):
@@ -26,6 +27,7 @@ class ConventionTrigger(BaseModel):
 
     after: list[str] | None = None  # e.g. ["1NT"]
     bid: str | None = None  # e.g. "2C"
+    model_config = ConfigDict(extra="forbid")
 
 
 class Convention(BaseModel):
@@ -50,6 +52,7 @@ class Convention(BaseModel):
     responses: list[BidNode] | None = None
     bids: list[BidNode] | None = None
     meaning: BidMeaning | None = None
+    model_config = ConfigDict(extra="forbid")
 
     @field_validator("id")
     @classmethod
@@ -61,4 +64,3 @@ class Convention(BaseModel):
             )
         return v
 
-    model_config = {"extra": "allow"}

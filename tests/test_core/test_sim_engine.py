@@ -187,6 +187,17 @@ class TestMatchesConstraint:
         hc = HandConstraint(shape={"ref": "balanced"})
         assert _matches_constraint(hand, hc) is False
 
+    def test_shape_precision_2d_match(self):
+        hand = BridgeHand(
+            spades=["A", "K", "Q", "J"],
+            hearts=["A", "K", "Q", "J"],
+            diamonds=["A"],
+            clubs=["A", "K", "Q", "J"],
+            hcp=20,
+        )
+        hc = HandConstraint(shape={"ref": "precision_2d"})
+        assert _matches_constraint(hand, hc) is True
+
     def test_controls_match(self):
         hand = BridgeHand(
             spades=["A"],
@@ -297,7 +308,7 @@ class TestGetCandidates:
 
 class TestSelectBid:
     def _make_node(self, bid: str, hcp_min: int | None = None, hcp_max: int | None = None):
-        from bbdsl.models.bid import BidNode, BidMeaning, HandConstraint
+        from bbdsl.models.bid import BidMeaning, BidNode, HandConstraint
         from bbdsl.models.common import Range
         hc = HandConstraint(hcp=Range(min=hcp_min, max=hcp_max)) if hcp_min or hcp_max else None
         meaning = BidMeaning(hand=hc) if hc else None

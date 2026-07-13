@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from .common import ForcingLevel, I18nString, Range
 
@@ -37,7 +37,7 @@ class HandConstraint(BaseModel):
     # Nested conditions
     conditions: list[dict] | None = None
 
-    model_config = {"extra": "allow"}
+    model_config = ConfigDict(extra="forbid")
 
 
 class BidMeaning(BaseModel):
@@ -51,6 +51,7 @@ class BidMeaning(BaseModel):
     forcing: ForcingLevel | None = None
     transfer_to: str | None = None
     notes: I18nString | None = None
+    model_config = ConfigDict(extra="forbid")
 
 
 class ForeachSuit(BaseModel):
@@ -58,6 +59,7 @@ class ForeachSuit(BaseModel):
 
     variable: str
     over: Literal["majors", "minors", "reds", "blacks", "all"]
+    model_config = ConfigDict(extra="forbid")
 
 
 class BidNode(BaseModel):
@@ -76,4 +78,4 @@ class BidNode(BaseModel):
     continuations: list[BidNode] | None = None
     when: str | None = None
 
-    model_config = {"extra": "allow"}
+    model_config = ConfigDict(extra="forbid")

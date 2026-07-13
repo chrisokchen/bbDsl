@@ -25,6 +25,7 @@ Example::
 from __future__ import annotations
 
 import random
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -45,6 +46,16 @@ SUITS: list[str] = ["spades", "hearts", "diamonds", "clubs"]
 #: Valid sorted (descending) patterns for each shape category
 _BALANCED_PATTERNS: set[tuple[int, ...]] = {(4, 3, 3, 3), (4, 4, 3, 2), (5, 3, 3, 2)}
 _SEMI_BAL_PATTERNS: set[tuple[int, ...]] = {(5, 4, 2, 2), (6, 3, 2, 2)}
+
+_BUILTIN_GENERIC_SHAPE_PATTERNS: dict[str, set[tuple[int, ...]]] = {
+    "balanced": _BALANCED_PATTERNS,
+    "semi_balanced": _SEMI_BAL_PATTERNS,
+    "semi-balanced": _SEMI_BAL_PATTERNS,
+}
+
+_BUILTIN_EXACT_SHAPE_PATTERNS: dict[str, set[tuple[int, ...]]] = {
+    "precision_2d": {(4, 4, 1, 4), (4, 4, 0, 5)},
+}
 
 # Per-suit card pools (rank, suit_name), sorted high-to-low
 _SUIT_POOL: dict[str, list[str]] = {s: list(RANKS) for s in SUITS}
@@ -131,6 +142,113 @@ def _check_hcp(hcp: int, constraint: Any) -> bool:
     return lo <= hcp <= hi
 
 
+def _count_hcp(by_suit: dict[str, list[str]]) -> int:
+    return _calc_hcp(by_suit)
+
+
+def _count_distribution_points(by_suit: dict[str, list[str]]) -> int:
+    """Very small heuristic for total_points = hcp + distribution."""
+    return sum(max(0, len(cards) - 4) for cards in by_suit.values())
+
+
+def _count_losing_tricks(by_suit: dict[str, list[str]]) -> int:
+    """Approximate losing trick count for a single hand."""
+    losers = 0
+    for cards in by_suit.values():
+        n = len(cards)
+        if n == 0:
+            losers += 3
+            continue
+        if n == 1:
+            losers += 2 - (1 if "A" in cards else 0)
+            continue
+        if n == 2:
+            losers += 1 - (1 if "A" in cards else 0) - (1 if "K" in cards else 0)
+            continue
+        suit_losers = 3
+        for honour in ("A", "K", "Q"):
+            if honour in cards:
+                suit_losers -= 1
+        losers += max(0, suit_losers)
+    return losers
+
+
+def _specific_cards(constraint: Any) -> list[str]:
+    cards = getattr(constraint, "specific_cards", None)
+    if not cards:
+        return []
+    return [str(card).upper() for card in cards]
+
+
+def _card_components(card: str) -> tuple[str, str]:
+    match = re.fullmatch(r"([AKQJT98765432])([SHDC])", card.upper())
+    if not match:
+        raise ValueError(f"Invalid specific card code: {card!r}")
+    rank, suit_code = match.groups()
+    suit_map = {"S": "spades", "H": "hearts", "D": "diamonds", "C": "clubs"}
+    return rank, suit_map[suit_code]
+
+
+def _parse_shape_tuple(value: str, *, exact: bool) -> tuple[int, ...] | None:
+    parts = re.split(r"[-=]", str(value).strip())
+    if len(parts) != 4 or not all(part.isdigit() for part in parts):
+        return None
+    numbers = tuple(int(part) for part in parts)
+    return numbers if exact else tuple(sorted(numbers, reverse=True))
+
+
+def _shape_patterns_from_catalog(
+    shape_patterns: dict[str, Any] | None,
+) -> dict[str, dict[str, set[tuple[int, ...]]]]:
+    """Resolve shape pattern definitions into generic and exact tuple sets."""
+    resolved: dict[str, dict[str, set[tuple[int, ...]]]] = {
+        ref: {"generic": set(patterns), "exact": set()}
+        for ref, patterns in _BUILTIN_GENERIC_SHAPE_PATTERNS.items()
+    }
+    for ref, patterns in _BUILTIN_EXACT_SHAPE_PATTERNS.items():
+        bucket = resolved.setdefault(str(ref), {"generic": set(), "exact": set()})
+        bucket["exact"].update(patterns)
+    if not shape_patterns:
+        return resolved
+
+    for ref, definition in shape_patterns.items():
+        bucket = resolved.setdefault(str(ref), {"generic": set(), "exact": set()})
+        shapes = getattr(definition, "shapes", None)
+        if shapes:
+            for shape in shapes:
+                pattern = _parse_shape_tuple(shape, exact=False)
+                if pattern is not None:
+                    bucket["generic"].add(pattern)
+        shapes_exact = getattr(definition, "shapes_exact", None)
+        if shapes_exact:
+            for shape in shapes_exact:
+                pattern = _parse_shape_tuple(shape, exact=True)
+                if pattern is not None:
+                    bucket["exact"].add(pattern)
+    return resolved
+
+
+def _constraint_shape_patterns(
+    constraint: Any,
+    shape_patterns: dict[str, Any] | None = None,
+) -> dict[str, set[tuple[int, ...]]] | None:
+    shape = getattr(constraint, "shape", None)
+    if shape is None:
+        return None
+
+    ref: str | None = None
+    if isinstance(shape, dict):
+        ref = shape.get("ref")
+    elif isinstance(shape, str):
+        ref = shape
+
+    if not ref or ref in ("any", ""):
+        return None
+
+    catalog = _shape_patterns_from_catalog(shape_patterns)
+    return catalog.get(ref)
+
+
 def _check_suit(cards: list[str], r: Any) -> bool:
     if r is None:
         return True
@@ -144,23 +262,41 @@ def _check_suit(cards: list[str], r: Any) -> bool:
     return True
 
 
-def _check_shape(by_suit: dict[str, list[str]], constraint: Any) -> bool:
+def _check_shape(
+    by_suit: dict[str, list[str]],
+    constraint: Any,
+    shape_patterns: dict[str, Any] | None = None,
+) -> bool:
     if constraint is None:
         return True
     shape = getattr(constraint, "shape", None)
     if shape is None:
         return True
+    ref: str | None = None
     if isinstance(shape, dict):
-        ref = shape.get("ref", "")
-        pattern = tuple(sorted([len(v) for v in by_suit.values()], reverse=True))
-        if ref == "balanced":
-            return pattern in _BALANCED_PATTERNS
-        if ref in ("semi_balanced", "semi-balanced"):
-            return pattern in _SEMI_BAL_PATTERNS
-    return True
+        ref = shape.get("ref")
+    elif isinstance(shape, str):
+        ref = shape
+    if not ref or ref in ("any", ""):
+        return True
+
+    pattern = tuple(len(by_suit[suit]) for suit in SUITS)
+    allowed = _constraint_shape_patterns(constraint, shape_patterns)
+    if allowed is None:
+        return pattern in _BUILTIN_EXACT_SHAPE_PATTERNS.get(ref, set()) or (
+            tuple(sorted(pattern, reverse=True))
+            in _BUILTIN_GENERIC_SHAPE_PATTERNS.get(ref, set())
+        )
+    if pattern in allowed.get("exact", set()):
+        return True
+    return tuple(sorted(pattern, reverse=True)) in allowed.get("generic", set())
 
 
-def _gen_suit_lengths(constraint: Any, rng: random.Random) -> dict[str, int] | None:
+def _gen_suit_lengths(
+    constraint: Any,
+    rng: random.Random,
+    shape_patterns: dict[str, Any] | None = None,
+) -> dict[str, int] | None:
     """Choose suit lengths summing to 13 that satisfy constraint.
 
     Returns a dict {suit: length} or None if infeasible.
@@ -181,19 +317,34 @@ def _gen_suit_lengths(constraint: Any, rng: random.Random) -> dict[str, int] | N
     shape = getattr(constraint, "shape", None) if constraint else None
     if shape and isinstance(shape, dict):
         shape_ref = shape.get("ref")
+    elif isinstance(shape, str):
+        shape_ref = shape
 
-    # Candidate patterns for shape-constrained hands
-    if shape_ref == "balanced":
-        candidates = list(_BALANCED_PATTERNS)
-    elif shape_ref in ("semi_balanced", "semi-balanced"):
-        candidates = list(_SEMI_BAL_PATTERNS)
-    else:
-        candidates = None
+    allowed_patterns = _constraint_shape_patterns(constraint, shape_patterns)
+    if shape_ref and allowed_patterns is None:
+        allowed_patterns = {
+            "generic": _BUILTIN_GENERIC_SHAPE_PATTERNS.get(shape_ref, set()),
+            "exact": _BUILTIN_EXACT_SHAPE_PATTERNS.get(shape_ref, set()),
+        }
+
+    exact_candidates = list(allowed_patterns.get("exact", set())) if allowed_patterns else []
+    generic_candidates = (
+        list(allowed_patterns.get("generic", set())) if allowed_patterns else []
+    )
 
     for _attempt in range(400):
-        if candidates:
-            # Pick a random valid pattern and assign to suits randomly
-            pattern = rng.choice(candidates)
+        if exact_candidates:
+            pattern = rng.choice(exact_candidates)
+            proposed = dict(zip(SUITS, pattern))
+            if all(
+                bounds[s][0] <= proposed[s] <= bounds[s][1]
+                for s in SUITS
+            ):
+                return proposed
+            continue
+        if generic_candidates:
+            # Pick a random valid pattern and assign to suits randomly.
+            pattern = rng.choice(generic_candidates)
             lengths_list = list(pattern)
             rng.shuffle(lengths_list)
             proposed = dict(zip(SUITS, lengths_list))
@@ -229,13 +380,30 @@ def _gen_suit_lengths(constraint: Any, rng: random.Random) -> dict[str, int] | N
     return None  # infeasible or very unlucky
 
 
-def _deal_cards(lengths: dict[str, int], rng: random.Random) -> dict[str, list[str]]:
+def _deal_cards(
+    lengths: dict[str, int],
+    rng: random.Random,
+    constraint: Any = None,
+) -> dict[str, list[str]]:
     """Deal cards according to suit lengths (random within each suit)."""
+    required_by_suit: dict[str, list[str]] = {s: [] for s in SUITS}
+    for card in _specific_cards(constraint):
+        rank, suit = _card_components(card)
+        required_by_suit[suit].append(rank)
+
     by_suit: dict[str, list[str]] = {}
     for suit in SUITS:
         pool = list(_SUIT_POOL[suit])
         rng.shuffle(pool)
-        chosen = sorted(pool[: lengths[suit]], key=lambda r: _RANK_IDX[r])
+        required = required_by_suit[suit]
+        if len(required) > lengths[suit]:
+            raise ValueError(
+                f"Constraint requires {len(required)} specific card(s) in {suit}, "
+                f"but only {lengths[suit]} card(s) allowed"
+            )
+        remaining_pool = [card for card in pool if card not in required]
+        chosen = required + remaining_pool[: max(0, lengths[suit] - len(required))]
+        chosen = sorted(chosen, key=lambda r: _RANK_IDX[r])
         by_suit[suit] = chosen
     return by_suit
 
@@ -254,6 +422,77 @@ def _check_controls(by_suit: dict[str, list[str]], constraint: Any) -> bool:
     return lo <= controls <= hi
 
 
+def _check_specific_cards(by_suit: dict[str, list[str]], constraint: Any) -> bool:
+    cards = _specific_cards(constraint)
+    if not cards:
+        return True
+    present: set[str] = set()
+    for suit_code, suit_name in (
+        ("S", "spades"),
+        ("H", "hearts"),
+        ("D", "diamonds"),
+        ("C", "clubs"),
+    ):
+        for rank in by_suit[suit_name]:
+            present.add(f"{rank}{suit_code}")
+    return all(card in present for card in cards)
+
+
+def _check_stopper_in(by_suit: dict[str, list[str]], constraint: Any) -> bool:
+    suit_name = getattr(constraint, "stopper_in", None)
+    if not suit_name:
+        return True
+    suit_map = {
+        "s": "spades",
+        "spades": "spades",
+        "h": "hearts",
+        "hearts": "hearts",
+        "d": "diamonds",
+        "diamonds": "diamonds",
+        "c": "clubs",
+        "clubs": "clubs",
+    }
+    suit = suit_map.get(str(suit_name).strip().lower())
+    if suit is None:
+        raise ValueError(f"Unsupported stopper_in value: {suit_name!r}")
+    cards = by_suit[suit]
+    if "A" in cards:
+        return True
+    if "K" in cards and len(cards) >= 2:
+        return True
+    if "Q" in cards and len(cards) >= 3:
+        return True
+    return False
+
+
+def _check_losing_tricks(by_suit: dict[str, list[str]], constraint: Any) -> bool:
+    lt = getattr(constraint, "losing_tricks", None)
+    if lt is None:
+        return True
+    count = _count_losing_tricks(by_suit)
+    lo = lt.min if lt.min is not None else 0
+    hi = lt.max if lt.max is not None else 12
+    return lo <= count <= hi
+
+
+def _check_total_points(by_suit: dict[str, list[str]], constraint: Any) -> bool:
+    tp = getattr(constraint, "total_points", None)
+    if tp is None:
+        return True
+    total = _count_hcp(by_suit) + _count_distribution_points(by_suit)
+    lo = tp.min if tp.min is not None else 0
+    hi = tp.max if tp.max is not None else 40
+    return lo <= total <= hi
+
+
+def _check_four_card_major(by_suit: dict[str, list[str]], constraint: Any) -> bool:
+    if getattr(constraint, "four_card_major", None) is None:
+        return True
+    if not constraint.four_card_major:
+        return not (len(by_suit["hearts"]) >= 4 or len(by_suit["spades"]) >= 4)
+    return len(by_suit["hearts"]) >= 4 or len(by_suit["spades"]) >= 4
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -262,6 +501,7 @@ def generate_hand(
     constraint: Any = None,
     seed: int | None = None,
     max_attempts: int = 5000,
+    shape_patterns: dict[str, Any] | None = None,
 ) -> BridgeHand:
     """Generate a random 13-card bridge hand satisfying *constraint*.
 
@@ -280,19 +520,27 @@ def generate_hand(
 
     for attempt in range(max_attempts):
         # Phase 1: suit lengths
-        lengths = _gen_suit_lengths(constraint, rng)
+        lengths = _gen_suit_lengths(constraint, rng, shape_patterns=shape_patterns)
         if lengths is None:
             continue
 
         # Phase 2: card selection (inner loop for HCP adjustment)
         for _ in range(20):
-            by_suit = _deal_cards(lengths, rng)
+            try:
+                by_suit = _deal_cards(lengths, rng, constraint=constraint)
+            except ValueError:
+                continue
             hcp = _calc_hcp(by_suit)
 
             if (
                 _check_hcp(hcp, constraint)
-                and _check_shape(by_suit, constraint)
+                and _check_shape(by_suit, constraint, shape_patterns=shape_patterns)
                 and _check_controls(by_suit, constraint)
+                and _check_losing_tricks(by_suit, constraint)
+                and _check_total_points(by_suit, constraint)
+                and _check_specific_cards(by_suit, constraint)
+                and _check_stopper_in(by_suit, constraint)
+                and _check_four_card_major(by_suit, constraint)
                 and all(
                     _check_suit(by_suit[suit], getattr(constraint, suit, None))
                     for suit in SUITS
