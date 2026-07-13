@@ -166,8 +166,7 @@
   - cd bbdsl-platform/backend && uv sync --extra dev
   - cd bbdsl-platform/backend && uv run python -m pytest：8 passed
 
-  保留的事項也已在修正紀錄內寫明，主要是 BCC 理論章節與部分更細的 constraint algebra，這輪先
-  處理了可直接驗證的程式與平台問題。
+  保留的事項也已在修正紀錄內寫明，主要是 BCC 理論章節與部分更細的 constraint algebra，這輪先處理了可直接驗證的程式與平台問題。
 
 ─ Worked for 57m 35s ─----------------
 
